@@ -15,6 +15,7 @@
 package api
 
 import (
+	"fmt"
 	"github.com/cilium/cilium/pkg/labels"
 	"regexp"
 )
@@ -214,6 +215,10 @@ type EgressRule struct {
 	//
 	// +optional
 	ToEntities []Entity `json:"toEntities,omitempty"`
+}
+
+func (r *EgressRule) String() string {
+	return fmt.Sprintf("ToEndpoints: %s, ToRequires: %s, ToPorts: %s, ToCIDR: %s", r.ToEndpoints, r.ToRequires, r.ToPorts, r.ToCIDR)
 }
 
 // CIDR specifies a block of IP addresses.
