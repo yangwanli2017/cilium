@@ -78,7 +78,6 @@ func (e EgressRule) Validate() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -194,6 +193,50 @@ func (cidr CIDR) Validate() error {
 		ip := net.ParseIP(strCIDR)
 		if ip == nil {
 			return fmt.Errorf("Unable to parse CIDR: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// Validate validates a CIDR rule by checking that the CIDR itself is valid,
+// and ensuring that all of the exception CIDRs are contained within the CIDR.
+func (c CIDRRule) Validate() error {
+	err := c.Cidr.Validate()
+	if err != nil {
+		return err
+	}
+
+	// Don't need to check error as this was done in validation of CIDR.
+	_, cidrNet, err := net.ParseCIDR(string(c.Cidr))
+
+	if err == nil {
+		// Returns the prefix length as zero if the mask is not continuous.
+		ones, _ := cidrNet.Mask.Size()
+		if ones == 0 {
+			return fmt.Errorf("Mask length can not be zero")
+		}
+
+		// Ensure that each provided exception CIDR is contained within the CIDR
+		// to/from which we want to allow traffic.
+		for _, p := range c.ExceptCIDR {
+			exceptCIDRAddr, _, err := net.ParseCIDR(string(p))
+			if err != nil {
+				return err
+			}
+			if !cidrNet.Contains(exceptCIDRAddr) {
+				return fmt.Errorf("allow CIDR %s does not contain exclude CIDR %s", c.Cidr, p)
+			}
+		}
+	} else {
+		// Try to parse as a fully masked IP or an IP subnetwork
+		ip := net.ParseIP(string(c.Cidr))
+		if ip == nil {
+			return fmt.Errorf("Unable to parse CIDR: %s", err)
+		}
+
+		if len(c.ExceptCIDR) > 0 {
+			return fmt.Errorf("IP was provided, cannot exclude a CIDR from an IP")
 		}
 	}
 

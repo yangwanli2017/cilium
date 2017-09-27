@@ -36,12 +36,12 @@ func (s *IpTestSuite) TestFirstIP(c *C) {
 	desiredIPv4_1 := net.IP{0xa, 0, 0, 0}
 	testNetv4_1 := net.IPNet{IP: net.ParseIP("10.0.0.5"), Mask: net.CIDRMask(8, 32)}
 	ipNetv4_1 := getFirstIP(&testNetv4_1)
-	for k, _ := range *ipNetv4_1 {
+	for k := range *ipNetv4_1 {
 		c.Assert(reflect.DeepEqual((*ipNetv4_1)[k], desiredIPv4_1[k]), Equals, true)
 	}
 	testNetv4_2 := net.IPNet{IP: net.ParseIP("10.0.0.0"), Mask: net.CIDRMask(8, 32)}
 	ipNetv4_2 := getFirstIP(&testNetv4_2)
-	for k, _ := range *ipNetv4_2 {
+	for k := range *ipNetv4_2 {
 		c.Assert(reflect.DeepEqual((*ipNetv4_2)[k], desiredIPv4_1[k]), Equals, true)
 	}
 
@@ -51,13 +51,13 @@ func (s *IpTestSuite) TestFirstIP(c *C) {
 		fmt.Errorf("%s\n", err)
 	}
 	ipNetv6_1 := getFirstIP(testNetv6_1)
-	for k, _ := range *ipNetv6_1 {
+	for k := range *ipNetv6_1 {
 		c.Assert(reflect.DeepEqual((*ipNetv6_1)[k], desiredIPv6_1[k]), Equals, true)
 	}
 }
 
 func (s *IpTestSuite) testIpNetsEqual(created, expected []*net.IPNet, c *C) {
-	for index, _ := range created {
+	for index := range created {
 		c.Assert(created[index].String(), Equals, expected[index].String())
 		c.Assert(created[index].Mask.String(), Equals, expected[index].Mask.String())
 	}
@@ -149,13 +149,13 @@ func (s *IpTestSuite) TestByteFunctions(c *C) {
 	testBytes := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0x0, 0x0, 0x0, 0x0}
 	newBytes := flipNthBit(&testBytes, 10)
 	expectedBytes := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0x0, 0x0, 0x4, 0x0}
-	for k, _ := range expectedBytes {
+	for k := range expectedBytes {
 		c.Assert(reflect.DeepEqual(expectedBytes[k], (*newBytes)[k]), Equals, true)
 	}
 
 	newBytes = flipNthBit(&testBytes, 32)
 	expectedBytes = []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xfe, 0x0, 0x0, 0x0, 0x0}
-	for k, _ := range expectedBytes {
+	for k := range expectedBytes {
 		c.Assert(reflect.DeepEqual(expectedBytes[k], (*newBytes)[k]), Equals, true)
 	}
 

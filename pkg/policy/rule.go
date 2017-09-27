@@ -176,11 +176,22 @@ func (r *rule) resolveL3Policy(ctx *SearchContext, state *traceState, result *L3
 	ctx.PolicyTrace("* Rule %d %s: match\n", state.ruleID, r)
 	found := 0
 
+
 	for _, r := range r.Ingress {
-		found += mergeL3(ctx, "Ingress", r.FromCIDR, &result.Ingress)
+		// TODO REMOVE ME:
+		var tmp []api.CIDR
+		for _, s := range r.FromCIDR {
+			tmp = append(tmp, s.Cidr)
+		}
+		found += mergeL3(ctx, "Ingress", tmp, &result.Ingress)
 	}
 	for _, r := range r.Egress {
-		found += mergeL3(ctx, "Egress", r.ToCIDR, &result.Egress)
+		// TODO REMOVE ME:
+		var tmp []api.CIDR
+		for _, s := range r.ToCIDR {
+			tmp = append(tmp, s.Cidr)
+		}
+		found += mergeL3(ctx, "Egress", tmp, &result.Egress)
 	}
 
 	if found > 0 {

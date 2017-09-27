@@ -15,10 +15,10 @@
 package ip
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"sort"
-	"bytes"
 )
 
 const (
@@ -50,7 +50,6 @@ func (s ByMask) Less(i, j int) bool {
 func (s ByMask) Len() int {
 	return len(s)
 }
-
 
 // RemoveCIDRs removes the specified CIDRs from another set of CIDRs. If a CIDR to remove is not
 // contained within the CIDR, the CIDR to remove is ignored. A slice of CIDRs is
@@ -92,8 +91,8 @@ Loop:
 				nets, err := removeCIDR(allowCIDR, remove)
 				if err != nil {
 					return nil, err
-
 				}
+
 				// Remove CIDR that we have just processed and append new CIDRs
 				// that we computed from removing the CIDR to remove.
 				allowCIDRs = append(allowCIDRs[:i], allowCIDRs[i+1:]...)
@@ -183,7 +182,7 @@ func removeCIDR(allowCIDR, removeCIDR *net.IPNet) ([]*net.IPNet, error) {
 		// out all subsequent bits.
 		newMaskSize := allowBitLen - i
 		newIP := (*net.IP)(flipNthBit((*[]byte)(removeFirstIP), uint(i)))
-		for k, _ := range *allowFirstIP {
+		for k := range *allowFirstIP {
 			(*newIP)[k] = (*allowFirstIP)[k] | (*newIP)[k]
 		}
 
