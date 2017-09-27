@@ -93,6 +93,19 @@ func ParseNetworkPolicy(np *networkingv1.NetworkPolicy) (api.Rules, error) {
 					ingress.FromEndpoints = append(ingress.FromEndpoints,
 						api.NewESFromK8sLabelSelector(labels.LabelSourceK8sKeyPrefix, rule.NamespaceSelector))
 				}
+
+				if rule.IPBlock != nil {
+
+					var cidrRule api.CIDRRule
+					cidrRule.Cidr = api.CIDR(rule.IPBlock.CIDR)
+
+					// Create list of CIDRs to exclude.
+					for _, v := range rule.IPBlock.Except {
+						cidrRule.ExceptCIDR = append(cidrRule.ExceptCIDR, api.CIDR(v))
+					}
+
+					ingress.FromCIDR = append(ingress.FromCIDR, cidrRule)
+				}
 			}
 		}
 
@@ -148,8 +161,16 @@ func ParseNetworkPolicy(np *networkingv1.NetworkPolicy) (api.Rules, error) {
 				}
 
 				if rule.IPBlock != nil {
-					egress.ToCIDR = append(egress.ToCIDR, api.CIDR(rule.IPBlock.CIDR))
 
+					var cidrRule api.CIDRRule
+					cidrRule.Cidr = api.CIDR(rule.IPBlock.CIDR)
+
+					// Create list of CIDRs to exclude.
+					for _, v := range rule.IPBlock.Except {
+						cidrRule.ExceptCIDR = append(cidrRule.ExceptCIDR, api.CIDR(v))
+					}
+
+					egress.ToCIDR = append(egress.ToCIDR, cidrRule)
 				}
 			}
 		}

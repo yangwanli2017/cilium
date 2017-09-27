@@ -158,20 +158,20 @@ func (ds *PolicyTestSuite) TestL3Policy(c *C) {
 
 		Ingress: []api.IngressRule{
 			{
-				FromCIDR: []api.CIDR{
-					"10.0.1.0/24",
-					"192.168.2.0",
-					"10.0.3.1",
-					"2001:db8::1/48",
-					"2001:db9::",
+				FromCIDR: []api.CIDRRule{
+					{"10.0.1.0/24", nil},
+					{"192.168.2.0", nil},
+					{"10.0.3.1", nil},
+					{"2001:db8::1/48", nil},
+					{"2001:db9::", nil},
 				},
 			},
 		},
 		Egress: []api.EgressRule{
 			{
-				ToCIDR: []api.CIDR{
-					"10.1.0.0/16",
-					"2001:dbf::/64",
+				ToCIDR: []api.CIDRRule{
+					{"10.1.0.0/16", nil},
+					{"2001:dbf::/64", nil},
 				},
 			},
 		},
@@ -211,7 +211,9 @@ func (ds *PolicyTestSuite) TestL3Policy(c *C) {
 	// Must be parsable, make sure Validate fails when not.
 	err = api.Rule{
 		Ingress: []api.IngressRule{{
-			FromCIDR: []api.CIDR{"10.0.1..0/24"},
+			FromCIDR: []api.CIDRRule{
+				{"10.0.1..0/24", nil},
+			},
 		}},
 	}.Validate()
 	c.Assert(err, Not(IsNil))
@@ -219,7 +221,9 @@ func (ds *PolicyTestSuite) TestL3Policy(c *C) {
 	// Must have a mask, make sure Validate fails when not.
 	err = api.Rule{
 		Ingress: []api.IngressRule{{
-			FromCIDR: []api.CIDR{"10.0.1.0/0"},
+			FromCIDR: []api.CIDRRule{
+				{"10.0.1.0/0", nil},
+			},
 		}},
 	}.Validate()
 	c.Assert(err, Not(IsNil))
@@ -228,7 +232,9 @@ func (ds *PolicyTestSuite) TestL3Policy(c *C) {
 	// Validate fails if given prefix length is out of range.
 	err = api.Rule{
 		Ingress: []api.IngressRule{{
-			FromCIDR: []api.CIDR{"10.0.1.0/34"},
+			FromCIDR: []api.CIDRRule{
+				{"10.0.1.0/34", nil},
+			},
 		}},
 	}.Validate()
 	c.Assert(err, Not(IsNil))

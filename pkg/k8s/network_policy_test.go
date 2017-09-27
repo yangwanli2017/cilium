@@ -779,3 +779,7 @@ func (s *K8sSuite) TestNetworkPolicyExamples(c *C) {
 	// Should be ACCEPT since the environment is from dev.
 	c.Assert(repo.AllowsRLocked(&ctx), Equals, api.Allowed)
 }
+
+func (s *K8sSuite) TestNetworkPolicyIPBLock(c *C) {
+	// TODO.
+}

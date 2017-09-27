@@ -108,15 +108,17 @@ type IngressRule struct {
 	ToPorts []PortRule `json:"toPorts,omitempty"`
 
 	// FromCIDR is a list of IP blocks which the endpoint subject to the
-	// rule is allowed to receive connections from in addition to FromEndpoints.
+	// rule is allowed to receive connections from in addition to FromEndpoints,
+	// along with a list of subnets contained within their corresponding IP block
+	// from which traffic should not be allowed.
 	// This will match on the source IP address of incoming connections.
 	//
-	// Example:
+	// TODO Example:
 	// Any endpoint with the label "app=my-legacy-pet" is allowed to receive
 	// connections from 10.3.9.1
 	//
 	// +optional
-	FromCIDR []CIDR `json:"fromCIDR,omitempty"`
+	FromCIDR []CIDRRule `json:"fromCIDR,omitempty"`
 }
 
 // EgressRule contains all rule types which can be applied at egress, i.e.
@@ -166,15 +168,16 @@ type EgressRule struct {
 
 	// ToCIDR is a list of IP blocks which the endpoint subject to the rule
 	// is allowed to initiate connections to in addition to connections
-	// which are allowed via FromEndpoints. This will match on the
-	// destination IP address of outgoing connections.
+	// which are allowed via FromEndpoints, along with a list of subnets contained
+	// within their corresponding IP block to which traffic should not be
+	// allowed. This will match on the  destination IP address of outgoing connections.
 	//
-	// Example:
+	// TODO Example:
 	// Any endpoint with the label "app=database-proxy" is allowed to
 	// initiate connections to 10.2.3.0/24
 	//
 	// +optional
-	ToCIDR []CIDR `json:"toCIDR,omitempty"`
+	ToCIDR []CIDRRule `json:"toCIDR,omitempty"`
 }
 
 func (r *EgressRule) String() string {
@@ -226,6 +229,19 @@ type PortRule struct {
 	//
 	// +optional
 	Rules *L7Rules `json:"rules,omitempty"`
+}
+
+type CIDRRule struct {
+
+	// CIDR is a CIDR / IP Block.
+	//
+	Cidr CIDR `json:"Cidr"`
+
+	// ExceptCIDR is a list of IP blocks which the endpoint subject to the rule
+	// is not allowed to initiate connections to. These CIDRs should be contained
+	// within Cidr.
+	//
+	ExceptCIDR []CIDR `json:"except,omitempty"`
 }
 
 // L7Rules is a union of port level rule types. Mixing of different port
