@@ -26,6 +26,8 @@ const (
 	ipv6BitLen = 8 * net.IPv6len
 )
 
+var ipv4Ipv6Slice = []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff}
+
 // Implementation of sorting of a list of IP networks by the size of their masks.
 type ByMask []*net.IPNet
 
@@ -113,6 +115,7 @@ Loop:
 }
 
 func getFirstIP(ipNet *net.IPNet) *net.IP {
+	//var mask, newIP net.IP
 	var mask net.IP
 
 	if ipNet.IP.To4() == nil {
@@ -126,6 +129,10 @@ func getFirstIP(ipNet *net.IPNet) *net.IP {
 			mask[net.IPv4len-i-1] = ipNet.IP[net.IPv6len-i-1] & ^ipNet.Mask[i]
 		}
 	}
+
+	/*for k := range *mask {
+		(newIP)[k] = (*allowFirstIP)[k] | (*newIP)[k]
+	}*/
 
 	return &mask
 }
@@ -161,8 +168,6 @@ func removeCIDR(allowCIDR, removeCIDR *net.IPNet) ([]*net.IPNet, error) {
 	allowFirstIPMasked := allowCIDR.IP.Mask(allowCIDR.Mask)
 	removeFirstIPMasked := removeCIDR.IP.Mask(removeCIDR.Mask)
 
-	ipv4Ipv6Slice := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff}
-
 	// Convert to IPv4 in IPv6 addresses if needed.
 	if allowIsIpv4 {
 		allowFirstIPMasked = append(ipv4Ipv6Slice, allowFirstIPMasked...)
@@ -194,6 +199,184 @@ func removeCIDR(allowCIDR, removeCIDR *net.IPNet) ([]*net.IPNet, error) {
 	}
 
 	return allows, nil
+}
+
+// CoalesceCIDRs transforms the provided list of CIDRs into the most-minimal equivalent set of CIDRs.
+// It removes CIDRs that are subnets of other CIDRs in the list, and groups together CIDRs that have the same mask size
+// into a CIDR of the same mask size provided that they share the same number of most significant mask-size bits.
+//
+// All IPs should be of the same type (IPv4, IPv6).
+func CoalesceCIDRs(cidrs []*net.IPNet) []*net.IPNet {
+	//sort.Sort(ByMask(cidrs))
+
+	//var transformedCIDRs []*net.IPNet
+
+	cidrs = []*net.IPNet{{IP: net.ParseIP("10.32.0.30"), Mask: net.CIDRMask(30, ipv4BitLen)},
+		{IP: net.ParseIP("10.32.0.30"), Mask: net.CIDRMask(32, ipv4BitLen)},
+		//{IP: net.ParseIP("10.32.0.255"), Mask: net.CIDRMask(30, ipv4BitLen)},
+		//{IP: net.ParseIP("10.0.0.0"), Mask: net.CIDRMask(8, ipv4BitLen)},
+		}
+
+	fmt.Printf("cidrs: %s\n", cidrs)
+
+	for i:= len(cidrs) - 1; i > 0; i-- {
+		ipNet := cidrs[i]
+		ipNet1 := cidrs[i-1]
+
+		previousIP := getPreviousIP(ipNet.IP)
+		nextIP := getNextIP(ipNet.IP)
+
+		fmt.Printf("previousIP: %s\n", previousIP)
+		fmt.Printf("nextIP: %s\n", nextIP)
+		fmt.Printf("ip: %s\n", ipNet.IP)
+
+		firstIP, lastIP := ipNetToRange(*ipNet)
+		fmt.Printf("firstIP: %s\n", firstIP)
+		fmt.Printf("lastIP: %s\n", lastIP)
+		fmt.Println()
+
+		previousIP1 := getPreviousIP(ipNet1.IP)
+		nextIP1 := getNextIP(ipNet1.IP)
+
+		fmt.Printf("previousIP1: %s\n", previousIP1)
+		fmt.Printf("nextIP1: %s\n", nextIP1)
+		fmt.Printf("ip1: %s\n", ipNet1.IP)
+
+		firstIP1, lastIP1 := ipNetToRange(*ipNet1)
+		fmt.Printf("firstIP1: %s\n", firstIP1)
+		fmt.Printf("lastIP1: %s\n", lastIP1)
+		fmt.Println()
+
+		if bytes.Compare(previousIP, lastIP1) <= 0 {
+			fmt.Printf("%s <= %s\n", previousIP, lastIP1)
+		}
+
+		var firstRangeIP net.IP
+		if bytes.Compare(firstIP1, firstIP) <= 0 {
+			firstRangeIP = firstIP1
+		} else {
+			firstRangeIP = firstIP
+		}
+
+		newRange := IPRange{First: firstRangeIP, Last: lastIP}
+		fmt.Printf("newRange: %s\n", newRange)
+
+		maxLen := 32
+		for l := maxLen; l >= 0; l-- {
+			mask := net.CIDRMask(l, maxLen)
+			na := newRange.First.Mask(mask)
+			n := net.IPNet{IP: na, Mask: mask}
+
+			if n.Contains(newRange.Last) {
+				fmt.Printf("smallest possible CIDR range: %v/%v\n", na, l)
+				break
+			}
+		}
+
+
+		fmt.Println()
+	}
+PreLoop:
+// Remove CIDRs which are contained within CIDRs that are in the list;
+// such CIDRs are redundant.
+	for j, cidr := range cidrs {
+		for i, compareCIDR := range cidrs {
+			if i == j {
+				continue
+			}
+			cidrMaskSize, _ := cidr.Mask.Size()
+			compareCIDRMaskSize, _ := compareCIDR.Mask.Size()
+			if cidrMaskSize == compareCIDRMaskSize {
+
+			}
+
+			if cidr.Contains(compareCIDR.IP) {
+				cidrs = append(cidrs[:i], cidrs[i+1:]...)
+				// Re-trigger loop since we have modified the slice we are iterating over.
+				goto PreLoop
+			}
+		}
+	}
+	return nil
+}
+
+type IPRange struct {
+	First net.IP
+	Last net.IP
+}
+
+func ipNetToRange(ipNet net.IPNet) (first net.IP, last net.IP) {
+	firstIP := make(net.IP, len(ipNet.IP))
+	copy(firstIP, ipNet.IP)
+	fmt.Printf("ipNet.IP: %s\n", ipNet.IP)
+	firstIP = firstIP.Mask(ipNet.Mask)
+
+	//firstIP := ipNet.IP.Mask(ipNet.Mask)
+	fmt.Printf("ipNet.IP: %s\n", ipNet.IP)
+	fmt.Printf("firstIP: %s\n", firstIP)
+	lastIP := make(net.IP, len(ipNet.IP))
+	copy(lastIP, ipNet.IP)
+	lastIPMask := make(net.IPMask, len(ipNet.Mask))
+	copy(lastIPMask, ipNet.Mask)
+	for i := range lastIPMask {
+		lastIPMask[len(lastIPMask)-i-1] = ^lastIPMask[len(lastIPMask)-i-1]
+		lastIP[net.IPv6len-i-1] = lastIP[net.IPv6len-i-1] | lastIPMask[len(lastIPMask)-i-1]
+	}
+
+	return firstIP, lastIP
+}
+
+func getPreviousIP(ip net.IP) net.IP {
+	// check lower bound for each IP range?
+	ipCopy := make(net.IP, len(ip))
+	copy(ipCopy, ip)
+	i := len(ip) - 1
+	var overflow bool
+	var lowerByteBound int
+	if ip.To4() != nil {
+		lowerByteBound = net.IPv6len - net.IPv4len
+	} else {
+		lowerByteBound = 0
+	}
+	for ; i >= lowerByteBound; i-- {
+		if overflow || i == len(ip) - 1 {
+			ipCopy[i]--
+		}
+		// Overflow condition means we need to continue
+		if ip[i] == 0 && ipCopy[i] == 255 {
+			overflow = true
+		} else {
+			overflow = false
+		}
+	}
+	return ipCopy
+}
+
+func getNextIP(ip net.IP) net.IP {
+	// check upper bound for each IP range?
+	ipCopy := make(net.IP, len(ip))
+	copy(ipCopy, ip)
+	i := len(ip) - 1
+	var overflow bool
+	var lowerByteBound int
+	if ip.To4() != nil {
+		lowerByteBound = net.IPv6len - net.IPv4len
+	} else {
+		lowerByteBound = 0
+	}
+	for ; i >= lowerByteBound; i-- {
+		if overflow || i == len(ip) - 1 {
+			ipCopy[i]++
+		}
+
+		if ip[i] == 255 && ipCopy[i] == 0 {
+			overflow = true
+		} else {
+			overflow = false
+		}
+
+	}
+	return ipCopy
 }
 
 func getByteIndexOfBit(bit uint) uint {

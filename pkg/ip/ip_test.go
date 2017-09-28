@@ -67,17 +67,26 @@ func createIPNet(address string, maskSize int, bitLen int) *net.IPNet {
 	return &net.IPNet{IP: net.ParseIP(address), Mask: net.CIDRMask(maskSize, bitLen)}
 }
 
+func printList(name string, cidrList []*net.IPNet) {
+	fmt.Printf("%s:\n ", name)
+	for _, v := range cidrList {
+		fmt.Printf("\t%s\n", v)
+	}
+}
+
 func (s *IpTestSuite) TestRemoveCIDRs(c *C) {
 	allowCIDRs := []*net.IPNet{createIPNet("10.0.0.0", 8, int(ipv4BitLen))}
 	removeCIDRs := []*net.IPNet{createIPNet("10.96.0.0", 12, int(ipv4BitLen)),
 		createIPNet("10.112.0.0", 13, int(ipv4BitLen)),
 	}
+
 	expectedCIDRs := []*net.IPNet{createIPNet("10.128.0.0", 9, int(ipv4BitLen)),
 		createIPNet("10.0.0.0", 10, int(ipv4BitLen)),
 		createIPNet("10.64.0.0", 11, int(ipv4BitLen)),
 		createIPNet("10.120.0.0", 13, int(ipv4BitLen))}
 
 	allowedCIDRs, err := RemoveCIDRs(allowCIDRs, removeCIDRs)
+
 	c.Assert(err, IsNil)
 
 	s.testIpNetsEqual(*allowedCIDRs, expectedCIDRs, c)
@@ -117,6 +126,7 @@ func (s *IpTestSuite) TestRemoveCIDRs(c *C) {
 	}
 
 	allowedCIDRs, err = RemoveCIDRs(allowCIDRs, removeCIDRs)
+
 	c.Assert(err, IsNil)
 	s.testIpNetsEqual(*allowedCIDRs, expectedCIDRs, c)
 
@@ -159,4 +169,8 @@ func (s *IpTestSuite) TestByteFunctions(c *C) {
 		c.Assert(reflect.DeepEqual(expectedBytes[k], (*newBytes)[k]), Equals, true)
 	}
 
+}
+
+func (s *IpTestSuite) TestCoalesceCIDRs(c *C) {
+	_ = CoalesceCIDRs(nil)
 }

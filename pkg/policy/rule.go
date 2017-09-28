@@ -19,6 +19,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/cilium/cilium/pkg/policy/api"
+	"github.com/cilium/cilium/pkg/ip"
+	"net"
 )
 
 type rule struct {
@@ -120,13 +122,19 @@ func (r *rule) resolveL4Policy(ctx *SearchContext, state *traceState, result *L4
 	return nil
 }
 
-func mergeL3(ctx *SearchContext, dir string, ipRules []api.CIDR, resMap *L3PolicyMap) int {
+func mergeL3(ctx *SearchContext, dir string, ipRules []api.CIDRRule, resMap *L3PolicyMap) int {
 	found := 0
+
+	//var allowCIDRs, removeCIDRs []*net.IPNet
+	/*for _, r := range ipRules {
+		for _, s := range r.Cidr
+	}*/
 
 	for _, r := range ipRules {
 		strCIDR := string(r)
 		ctx.PolicyTrace("  Allows %s IP %s\n", dir, strCIDR)
 
+		//ip.RemoveCIDRs()
 		found += resMap.Insert(strCIDR)
 	}
 
@@ -144,21 +152,16 @@ func (r *rule) resolveL3Policy(ctx *SearchContext, state *traceState, result *L3
 	found := 0
 
 
+	var allowCIDRs, removeCIDRs []*net.IPNet
+
 	for _, r := range r.Ingress {
-		// TODO REMOVE ME:
-		var tmp []api.CIDR
-		for _, s := range r.FromCIDR {
-			tmp = append(tmp, s.Cidr)
+		for _, p := range r.FromCIDR {
+
 		}
-		found += mergeL3(ctx, "Ingress", tmp, &result.Ingress)
+		found += mergeL3(ctx, "Ingress", r.FromCIDR, &result.Ingress)
 	}
 	for _, r := range r.Egress {
-		// TODO REMOVE ME:
-		var tmp []api.CIDR
-		for _, s := range r.ToCIDR {
-			tmp = append(tmp, s.Cidr)
-		}
-		found += mergeL3(ctx, "Egress", tmp, &result.Egress)
+		found += mergeL3(ctx, "Egress", r.ToCIDR, &result.Egress)
 	}
 
 	if found > 0 {

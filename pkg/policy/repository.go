@@ -22,6 +22,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/policy/api"
+	"net"
+	"github.com/cilium/cilium/pkg/ip"
 )
 
 // Repository is a list of policy rules which in combination form the security
@@ -144,7 +146,72 @@ func (p *Repository) ResolveL3Policy(ctx *SearchContext) *L3Policy {
 	ctx.PolicyTrace("Resolving L3 (CIDR) policy for %+v\n", ctx.To)
 
 	state := traceState{}
+
+	var allAllowedIngressCIDRs, allAllowedEgressCIDRs []*net.IPNet
+
 	for _, r := range p.rules {
+		// Coalesce CIDRs for ingress.
+		for _, s := range r.Ingress {
+			var allowIngressCIDRs, removeIngressCIDRs []*net.IPNet
+			for _, t := range s.FromCIDR {
+				// Convert allowed CIDR to net.IPNet.
+				_, ingressNet, err := net.ParseCIDR(string(t.Cidr))
+				if err != nil {
+					//TODO: what to do with error?
+				}
+				allowIngressCIDRs = append(allowIngressCIDRs, ingressNet)
+
+				// Convert exception CIDRs to net.IPNet.
+				for _, u := range t.ExceptCIDR {
+					_, ingressExceptNet, err := net.ParseCIDR(string(u))
+					if err != nil {
+						//TODO: what to do with error?
+					}
+					removeIngressCIDRs = append(removeIngressCIDRs, ingressExceptNet)
+				}
+
+				// Compute resultant set of CIDRs from allowed, removed CIDRs.
+				computedAllowedCIDRs, err := ip.RemoveCIDRs(allowIngressCIDRs, removeIngressCIDRs)
+				if err != nil {
+					//TODO: what to do with error?
+				}
+				allAllowedIngressCIDRs = append(allAllowedIngressCIDRs, *computedAllowedCIDRs...)
+			}
+		}
+
+		//Coalesce allowed CIDRs.
+
+
+
+
+		for _, s := range r.Egress {
+			var allowEgressCIDRs, removeEgressCIDRs []*net.IPNet
+			for _, t := range s.ToCIDR {
+				// Convert allowed CIDR to net.IPNet.
+				_, ingressNet, err := net.ParseCIDR(string(t.Cidr))
+				if err != nil {
+					//TODO: what to do with error?
+				}
+				allowEgressCIDRs = append(allowEgressCIDRs, ingressNet)
+
+				// Convert exception CIDRs to net.IPNet.
+				for _, u := range t.ExceptCIDR {
+					_, ingressExceptNet, err := net.ParseCIDR(string(u))
+					if err != nil {
+						//TODO: what to do with error?
+					}
+					removeEgressCIDRs = append(removeEgressCIDRs, ingressExceptNet)
+				}
+
+				// Compute resultant set of CIDRs from allowed, removed CIDRs.
+				computedAllowedCIDRs, err := ip.RemoveCIDRs(allowEgressCIDRs, removeEgressCIDRs)
+				if err != nil {
+					//TODO: what to do with error?
+				}
+				allAllowedEgressCIDRs = append(allAllowedEgressCIDRs, *computedAllowedCIDRs...)
+			}
+		}
+		// Coalesce CIDRs for egress.
 		r.resolveL3Policy(ctx, &state, result)
 		state.ruleID++
 	}
