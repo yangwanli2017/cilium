@@ -246,10 +246,10 @@ func CoalesceCIDRs(cidrs []*net.IPNet) []*net.IPNet {
 
 		firstIP1, lastIP1 := ipNetToRange(*ipNet1)
 		fmt.Printf("firstIP1: %s\n", firstIP1)
-		fmt.Printf("firstIP1: %08b\n", firstIP1)
+		//fmt.Printf("firstIP1: %08b\n", firstIP1)
 		fmt.Printf("lastIP1: %s\n", lastIP1)
 
-		fmt.Printf("lastIP1: %08b\n", lastIP1)
+		//fmt.Printf("lastIP1: %08b\n", lastIP1)
 		fmt.Println()
 
 		if bytes.Compare(previousIP, lastIP1) <= 0 {
@@ -268,9 +268,24 @@ func CoalesceCIDRs(cidrs []*net.IPNet) []*net.IPNet {
 		newRange := IPRange{First: firstRangeIP, Last: lastIP}
 		fmt.Printf("newRange: %s\n", newRange)
 
-		_ = createSpanningCIDR(newRange)
+		spanningCIDR := createSpanningCIDR(newRange)
+		fmt.Printf("spanningCIDR: %s\n", spanningCIDR)
 		//splitRange4(net.ParseIP("0.0.0.0"), 0, newRange.First, newRange.Last, &newCIDRs)
 		fmt.Printf("newCIDRs: %s\n", newCIDRs)
+
+		firstIPSpanning, lastIPSpanning := ipNetToRange(spanningCIDR)
+		if bytes.Compare(firstIPSpanning, firstRangeIP) < 0 {
+			fmt.Printf("firstIPSpanning %s < firstRangeIP %s\n", firstIPSpanning, firstRangeIP)
+			prevFirstRangeIP := getPreviousIP(firstRangeIP)
+			fmt.Printf("previous IP for IP %s: %s\n", firstRangeIP, prevFirstRangeIP)
+			resultantNets, err := removeCIDR(&spanningCIDR, &net.IPNet{IP: prevFirstRangeIP, Mask: net.CIDRMask(32, 32)})
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+			}
+			fmt.Printf("resultantNets: %s\n", resultantNets)
+		} else if bytes.Compare(lastIPSpanning, newRange.Last) > 0 {
+			fmt.Printf("lastIPSpanning %s > newRange.Last %s\n", lastIPSpanning, newRange.Last)
+		}
 
 
 		fmt.Println()
@@ -300,8 +315,8 @@ PreLoop:
 }
 
 func compareIPs(low, high net.IP) int {
-	fmt.Printf("low: %08b\n", low)
-	fmt.Printf("high: %08b\n", high)
+	//fmt.Printf("low: %08b\n", low)
+	//fmt.Printf("high: %08b\n", high)
 	for i, _ := range high {
 		fmt.Printf("low[%d], high[%d]: %d, %d\n", low[i], high[i])
 		if low[i] == high[i] {
@@ -320,76 +335,15 @@ func compareIPs(low, high net.IP) int {
 func createSpanningCIDR(r IPRange) net.IPNet {
 	highest := r.Last
 	lowest := r.First
-	fmt.Printf("highest: %s\n", highest)
-	fmt.Printf("lowest: %s\n", lowest)
-	fmt.Printf("compareIPs: %s, %s: %d\n", lowest, highest, compareIPs(lowest, highest))
 	prefixLen := 32
-	fmt.Printf("bytes.Compare(%s, %s) <= 0 : %v\n", lowest, highest, bytes.Compare(lowest, highest))
 	for ; prefixLen > 0 && bytes.Compare(lowest, highest) <= 0 ; prefixLen-- {
-		fmt.Printf("bytes.Compare(%s, %s) > 0 : %v\n", lowest, highest, bytes.Compare(lowest, highest))
-		//fmt.Printf("prefixLen: %d\n", prefixLen)
-		//fmt.Printf("highest before: %08b\n", highest)
-		//fmt.Printf("len(highst): %d\n", len(highest))
-		// iterate over each byte
 		for i := (len(highest) - 1); i >= net.IPv6len - net.IPv4len + prefixLen % 8 ; i-- {
-			//fmt.Printf("\thighest before: %08b\n", highest)
-			//fmt.Printf("\t-1<<(8-uint(i mod 8): %d\n", (1<<(8-uint(i%8))))
-			//fmt.Printf("8-uint(i mod 8): %d\n", 8-uint(i%8))
-			// iterate over each bit
 			for j := 0; j < prefixLen%8 ; j++ {
-				fmt.Printf("\thighest before: %08b\n", highest)
 				highest[i] &= -(1 << (8 - uint(j)))
-				fmt.Printf("\thighest after: \t%08b\n", highest)
 			}
 		}
-		fmt.Printf("highest after: %08b\n", highest)
 	}
-	fmt.Printf("highest: %s\n", highest)
-	fmt.Printf("prefixlen: %d\n", prefixLen)
-
-	return net.IPNet{}
-}
-
-// splitRange4 recursively computes the CIDR blocks to cover the range lo to hi.
-func splitRange4(addr net.IP, prefix uint, lo, hi net.IP, cidrs *[]*net.IPNet) error {
-	if prefix > 32 {
-		return fmt.Errorf("Invalid mask size: %d", prefix)
-	}
-
-	_, bc := ipNetToRange(net.IPNet{IP: addr, Mask: net.CIDRMask(int(prefix), 8*net.IPv4len)})
-	fmt.Printf("bc: %s\n", bc)
-	if (bytes.Compare(lo, addr) < 0 || bytes.Compare(hi, bc) > 0) {
-		return fmt.Errorf("%s, %s out of range for network %s/%d, broadcast %s", lo, hi, addr, prefix, bc)
-	}
-
-	fmt.Printf("lo: %s\n", lo)
-	fmt.Printf("addr: %s\n", addr)
-	fmt.Printf("hi: %s\n", hi)
-	if (bytes.Equal(lo, addr) && bytes.Equal(hi, bc)) {
-		cidr := net.IPNet{IP: addr, Mask: net.CIDRMask(int(prefix), 8*net.IPv4len)}
-		fmt.Printf("cidr: %s\n", cidr)
-		*cidrs = append(*cidrs, &cidr)
-		return nil
-	}
-
-	prefix++
-	lowerHalf := addr
-	fmt.Printf("lowerHalf: %s\n", addr)
-	nthBitIp := ([]byte)(addr)
-	upperHalf := setNthBit(&nthBitIp, prefix, 1)
-	fmt.Printf("upperHalf: %s\n", addr)
-	if bytes.Compare(hi, *upperHalf) < 0 {
-		return splitRange4(lowerHalf, prefix, lo, hi, cidrs)
-	} else if bytes.Compare(lo, *upperHalf) >= 0 {
-		return splitRange4(*upperHalf, prefix, lo, hi, cidrs)
-	} else {
-		_, broad := ipNetToRange(net.IPNet{IP: lowerHalf, Mask: net.CIDRMask(int(prefix), 8*net.IPv4len)})
-		err := splitRange4(lowerHalf, prefix, lo, broad, cidrs)
-		if err != nil {
-			return err
-		}
-		return splitRange4(*upperHalf, prefix, *upperHalf, hi, cidrs)
-	}
+	return net.IPNet{IP: highest, Mask: net.CIDRMask(prefixLen+1, 8*net.IPv4len)}
 }
 
 type IPRange struct {
@@ -397,18 +351,20 @@ type IPRange struct {
 	Last net.IP
 }
 
+type NetworkInfo struct {
+	IPNet net.IPNet
+	IPRange IPRange
+}
+
 func ipNetToRange(ipNet net.IPNet) (first net.IP, last net.IP) {
 	fmt.Printf("len(ipNet.IP): %d\n", len(ipNet.IP))
 	firstIP := make(net.IP, len(ipNet.IP))
 	copy(firstIP, ipNet.IP)
-	fmt.Printf("ipNet.IP: %08b\n", ipNet.IP)
 	firstIP = firstIP.Mask(ipNet.Mask)
 	if firstIP.To4() != nil {
 		firstIP = append(ipv4Ipv6Slice, firstIP...)
 	}
-	fmt.Printf("firstIP: %08b\n", firstIP)
 
-	//firstIP := ipNet.IP.Mask(ipNet.Mask)
 	fmt.Printf("ipNet.IP: %s\n", ipNet.IP)
 	fmt.Printf("firstIP: %s\n", firstIP)
 	lastIP := make(net.IP, len(ipNet.IP))
