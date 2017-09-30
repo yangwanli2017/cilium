@@ -47,6 +47,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"math/rand"
 )
 
 var (
@@ -428,6 +429,10 @@ func initConfig() {
 }
 
 func initEnv() {
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
+
 	common.SetupLogging(loggers, logOpts, "cilium-agent", viper.GetBool("debug"))
 
 	socketDir := path.Dir(socketPath)
@@ -464,7 +469,9 @@ func initEnv() {
 	config.Opts.Set(endpoint.OptionConntrackLocal, false)
 
 	config.EnablePolicyMU.Lock()
+	log.Debugf("EnablePolicyMU LOCK : to set EnablePolicy value: initEnv() %d", randInt)
 	config.EnablePolicy = strings.ToLower(config.EnablePolicy)
+	log.Debugf("EnablePolicyMU UNLOCK: after setting EnablePolicy value: initEnv() %d", randInt)
 	config.EnablePolicyMU.Unlock()
 
 	if err := kvstore.Setup(kvStore, kvStoreOpts); err != nil {

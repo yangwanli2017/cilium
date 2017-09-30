@@ -35,6 +35,8 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/op/go-logging"
 	log "github.com/sirupsen/logrus"
+	"math/rand"
+	"time"
 )
 
 // GetCachedLabelList returns the cached labels for the given identity.
@@ -90,6 +92,8 @@ func (d *Daemon) EnableEndpointPolicyEnforcement(e *endpoint.Endpoint) bool {
 	// enabled for the endpoint.
 
 	config.EnablePolicyMU.RLock()
+	log.Debugf("EnablePolicyMU: RLOCK EnableEndpointPolicyEnforcement")
+	defer log.Debugf("EnablePolicyMU: RUNLOCK EnableEndpointPolicyEnforcement: ")
 	defer config.EnablePolicyMU.RUnlock()
 	daemonPolicyEnable := d.EnablePolicyEnforcement()
 	if daemonPolicyEnable {
@@ -177,6 +181,10 @@ func (d *Daemon) traceL4Ingress(ctx policy.SearchContext, ports []*models.Port) 
 }
 
 func (h *getPolicyResolve) Handle(params GetPolicyResolveParams) middleware.Responder {
+
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
 	log.Debugf("GET /policy/resolve request: %+v", params)
 
 	d := h.daemon
@@ -187,6 +195,7 @@ func (h *getPolicyResolve) Handle(params GetPolicyResolveParams) middleware.Resp
 	d.policy.Mutex.RLock()
 
 	d.conf.EnablePolicyMU.RLock()
+	log.Debugf("EnablePolicyMU: RLOCK: GET /policy/resolve %d", randInt)
 	// If policy enforcement isn't enabled, then traffic is allowed.
 	if d.conf.EnablePolicy == endpoint.NeverEnforce {
 		policyEnforcementMsg = "Policy enforcement is disabled for the daemon."
@@ -212,6 +221,8 @@ func (h *getPolicyResolve) Handle(params GetPolicyResolveParams) middleware.Resp
 			isPolicyEnforcementEnabled = false
 		}
 	}
+
+	log.Debugf("EnablePolicyMU: RUNLOCK: GET /policy/resolve %d", randInt)
 	d.conf.EnablePolicyMU.RUnlock()
 
 	d.policy.Mutex.RUnlock()

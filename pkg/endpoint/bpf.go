@@ -39,6 +39,7 @@ import (
 	"github.com/cilium/cilium/pkg/version"
 
 	log "github.com/sirupsen/logrus"
+	"math/rand"
 )
 
 const (
@@ -335,10 +336,16 @@ func (e *Endpoint) runInit(libdir, rundir, epdir, debug string) error {
 func (e *Endpoint) regenerateBPF(owner Owner, epdir string) error {
 	var err error
 
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
+
 	// Make sure that owner is not compiling base programs while we are
 	// regenerating an endpoint.
-	owner.GetCompilationLock().RLock()
-	defer owner.GetCompilationLock().RUnlock()
+	owner.RLockCompilationLock()
+	log.Debugf("compilationMutex RLOCK: endpoint %d regenerateBPF %d", e.ID, randInt)
+	defer log.Debugf("compilationMutex RUNLOCK: endpoint %d regenerateBPF %d", e.ID, randInt)
+	defer owner.RUnlockCompilationLock()
 
 	if err = e.writeHeaderfile(epdir, owner); err != nil {
 		return fmt.Errorf("unable to write header file: %s", err)

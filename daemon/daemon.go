@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+	time "time"
 
 	"github.com/cilium/cilium/api/v1/models"
 	. "github.com/cilium/cilium/api/v1/server/restapi/daemon"
@@ -67,6 +67,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/registry/core/service/ipallocator"
+	"math/rand"
 )
 
 const (
@@ -247,8 +248,15 @@ func (d *Daemon) AlwaysAllowLocalhost() bool {
 
 // PolicyEnforcement returns the type of policy enforcement for the daemon.
 func (d *Daemon) PolicyEnforcement() (pe string) {
+
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
+
 	d.conf.EnablePolicyMU.RLock()
+	log.Debugf("EnablePolicyMU RLOCK: daemon.PolicyEnforcement() %d", randInt)
 	pe = d.conf.EnablePolicy
+	log.Debugf("EnablePolicyMU RUNLOCK: daemon.PolicyEnforcement() %d", randInt)
 	d.conf.EnablePolicyMU.RUnlock()
 	return
 }
@@ -612,7 +620,18 @@ func (d *Daemon) installMasqRule() error {
 // GetCompilationLock returns the mutex responsible for synchronizing compilation
 // of BPF programs.
 func (d *Daemon) GetCompilationLock() *sync.RWMutex {
+	//log.Debugf("GetCompilationLock: getting compilationMutex")
 	return d.compilationMutex
+}
+
+func (d *Daemon) RLockCompilationLock() {
+	d.compilationMutex.RLock()
+}
+
+
+func (d *Daemon) RUnlockCompilationLock() {
+	d.compilationMutex.RUnlock()
+
 }
 
 // Must be called with d.conf.EnablePolicyMU locked.
@@ -620,8 +639,14 @@ func (d *Daemon) compileBase() error {
 	var args []string
 	var mode string
 
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
+
 	// Lock so that endpoints cannot be built while we are compile base programs.
 	d.compilationMutex.Lock()
+	log.Debugf("compilationMutex LOCK: compileBase %d", randInt)
+	defer log.Debugf("compilationMutex UNLOCK: compileBase %d", randInt)
 	defer d.compilationMutex.Unlock()
 
 	if err := d.writeNetdevHeader("./"); err != nil {
@@ -720,6 +745,11 @@ func (d *Daemon) compileBase() error {
 }
 
 func (d *Daemon) init() error {
+
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
+
 	globalsDir := filepath.Join(d.conf.StateDir, "globals")
 	if err := os.MkdirAll(globalsDir, defaults.RuntimePathRights); err != nil {
 		log.Fatalf("Could not create runtime directory %s: %s", globalsDir, err)
@@ -795,11 +825,14 @@ func (d *Daemon) init() error {
 
 	if !d.DryModeEnabled() {
 		d.conf.EnablePolicyMU.Lock()
+		log.Debugf("EnablePolicyMU LOCK: daemon.init() %d", randInt)
 		if err := d.compileBase(); err != nil {
+			log.Debugf("EnablePolicyMU UNLOCK: because compileBase returned error : daemon.init()  %d", randInt)
 			d.conf.EnablePolicyMU.Unlock()
 			return err
 		}
 
+		log.Debugf("EnablePolicyMU UNLOCK: after compileBase succeeded:  daemon.init()  %d", randInt)
 		d.conf.EnablePolicyMU.Unlock()
 
 		localIPs := []net.IP{
@@ -1244,12 +1277,19 @@ func NewPatchConfigHandler(d *Daemon) PatchConfigHandler {
 }
 
 func (h *patchConfig) Handle(params PatchConfigParams) middleware.Responder {
+
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randInt := r1.Intn(10000)
+
 	log.Debugf("PATCH /config request: %+v", params)
 
 	d := h.daemon
 
 	// Serialize configuration updates to the daemon.
+	log.Debugf("ConfigPatchMutex LOCK: PATCH config  %d", randInt)
 	d.conf.ConfigPatchMutex.Lock()
+	defer log.Debugf("ConfigPatchMutex UNLOCK: PATCH config  %d", randInt)
 	defer d.conf.ConfigPatchMutex.Unlock()
 
 	if numPagesEntry, ok := params.Configuration.Mutable["MonitorNumPages"]; ok {
@@ -1278,6 +1318,7 @@ func (h *patchConfig) Handle(params PatchConfigParams) middleware.Responder {
 
 			// Update policy enforcement configuration if needed.
 			config.EnablePolicyMU.Lock()
+			log.Debugf("EnablePolicyMU LOCK: update config: PATCH Config %d", randInt)
 			oldEnforcementValue := config.EnablePolicy
 
 			// If the policy enforcement configuration has indeed changed, we have
@@ -1287,6 +1328,7 @@ func (h *patchConfig) Handle(params PatchConfigParams) middleware.Responder {
 				config.EnablePolicy = enforcement
 				d.TriggerPolicyUpdates([]policy.NumericIdentity{})
 			}
+			log.Debugf("EnablePolicyMU UNLOCK: done updating config: PATCH config %d", randInt)
 			config.EnablePolicyMU.Unlock()
 		default:
 			msg := fmt.Errorf("Invalid option for PolicyEnforcement %s", enforcement)
@@ -1304,6 +1346,8 @@ func (h *patchConfig) Handle(params PatchConfigParams) middleware.Responder {
 	if changes > 0 {
 		log.Debugf("daemon configuration has changed; recompiling base programs")
 		d.conf.EnablePolicyMU.Lock()
+		log.Debugf("EnablePolicyMU LOCK: to compile base programs: PATCH config  %d", randInt)
+		defer log.Debugf("EnablePolicyMU UNLOCK: done compiling base programs: PATCH config  %d", randInt)
 		defer d.conf.EnablePolicyMU.Unlock()
 		if err := d.compileBase(); err != nil {
 			msg := fmt.Errorf("Unable to recompile base programs: %s", err)

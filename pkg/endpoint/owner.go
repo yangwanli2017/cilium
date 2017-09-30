@@ -79,6 +79,10 @@ type Owner interface {
 	// GetCompilationLock returns the mutex responsible for synchronizing compilation
 	// of BPF programs.
 	GetCompilationLock() *sync.RWMutex
+
+	RLockCompilationLock()
+
+	RUnlockCompilationLock()
 }
 
 // Request is used to create the endpoint's request and send it to the endpoints
