@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/pkg/labels"
+	"github.com/cilium/cilium/pkg/logfields"
 	"github.com/cilium/cilium/pkg/policy/api"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,9 +107,12 @@ func parseToCilium(namespace, name string, r *api.Rule) *api.Rule {
 
 		userNamespace, ok := retRule.EndpointSelector.LabelSelector.MatchLabels[labels.LabelSourceK8sKeyPrefix+PodNamespaceLabel]
 		if ok && userNamespace != namespace {
-			log.Warningf("k8s: CiliumNetworkPolicy %s/%s contains illegal namespace match '%s' in EndpointSelector."+
-				" EndpointSelector always applies in namespace of the policy resource, removing namespace match '%s'.",
-				namespace, name, userNamespace, userNamespace)
+			pkgLog.WithFields(log.Fields{
+				logfields.K8sNamespace:              namespace,
+				logfields.CiliumNetworkPolicyName:   name,
+				logfields.K8sNamespace + ".illegal": userNamespace,
+			}).Warn("k8s: CiliumNetworkPolicy contains illegal namespace match in EndpointSelector." +
+				" EndpointSelector always applies in namespace of the policy resource, removing illegal namespace match'.")
 		}
 		retRule.EndpointSelector.LabelSelector.MatchLabels[labels.LabelSourceK8sKeyPrefix+PodNamespaceLabel] = namespace
 	}

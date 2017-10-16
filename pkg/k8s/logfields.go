@@ -14,6 +14,11 @@
 
 package k8s
 
+import (
+	"github.com/cilium/cilium/pkg/logfields"
+	log "github.com/sirupsen/logrus"
+)
+
 // logging field definitions
 const (
 	// fieldRetry is the current retry attempt
@@ -22,10 +27,10 @@ const (
 	// fieldMaxRetry is the maximum number of retries
 	fieldMaxRetry = "maxRetry"
 
-	// fieldNodeName is the Kubernetes node name where the agent is running on
-	fieldNodeName = "nodeName"
-
-	// fieldSubsys is set to subsysKubernetes on all Kubernetes logging messages
-	fieldSubsys      = "subsys"
+	// subsysKubernetes is the value for logfields.LogSubsys
 	subsysKubernetes = "kubernetes"
+)
+
+var (
+	pkgLog = log.WithField(logfields.LogSubsys, subsysKubernetes)
 )

@@ -19,9 +19,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cilium/cilium/pkg/logfields"
 	"github.com/cilium/cilium/pkg/nodeaddress"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Init initializes the Kubernetes package. It is required to call Configure()
@@ -43,7 +42,7 @@ func Init() error {
 
 		node := ParseNode(k8sNode)
 
-		log.Infof("Retrieved node's %s information from kubernetes", node.Name)
+		pkgLog.WithField(logfields.NodeName, node.Name).Info("Retrieved node's information from kubernetes")
 
 		if err := nodeaddress.UseNodeCIDR(node); err != nil {
 			return fmt.Errorf("unable to retrieve k8s node CIDR: %s", err)
