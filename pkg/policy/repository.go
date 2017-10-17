@@ -160,7 +160,7 @@ func (p *Repository) allowsL4Egress(searchCtx *SearchContext) api.Decision {
 	ctx.PolicyTrace("\n")
 	policy, err := p.ResolveL4Policy(&ctx)
 	if err != nil {
-		log.WithError(err).Warning("Evaluation error while resolving L4 egress policy")
+		log.WithError(err).Warn("Evaluation error while resolving L4 egress policy")
 	}
 	verdict := api.Undecided
 	if err == nil && len(policy.Egress) > 0 {
@@ -182,7 +182,7 @@ func (p *Repository) allowsL4Ingress(ctx *SearchContext) api.Decision {
 	ctx.PolicyTrace("\n")
 	policy, err := p.ResolveL4Policy(ctx)
 	if err != nil {
-		log.WithError(err).Warning("Evaluation error while resolving L4 ingress policy")
+		log.WithError(err).Warn("Evaluation error while resolving L4 ingress policy")
 	}
 	verdict := api.Undecided
 	if err == nil && len(policy.Ingress) > 0 {
