@@ -96,7 +96,7 @@ func (ws *watcherState) syncWithRuntime() {
 
 	cList, err := dockerClient.ContainerList(ctx.Background(), dTypes.ContainerListOptions{All: false})
 	if err != nil {
-		log.Errorf("Failed to retrieve the container list %s", err)
+		pkgLog.WithError(err).Error("Failed to retrieve the container list")
 		return
 	}
 	for _, cont := range cList {
@@ -105,7 +105,7 @@ func (ws *watcherState) syncWithRuntime() {
 		}
 
 		if alreadyHandled := ws.handlingContainerID(cont.ID); !alreadyHandled {
-			log.WithFields(log.Fields{
+			pkgLog.WithFields(log.Fields{
 				logfields.ContainerID: shortContainerID(cont.ID),
 			}).Debug("Found unwatched container")
 
