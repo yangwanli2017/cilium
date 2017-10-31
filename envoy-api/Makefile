@@ -28,10 +28,17 @@ FILTER_GOS = $(FILTER_PROTOS:.proto=.pb.go)
 FILTER_SOURCES := $(addprefix $(PROTO_PATH)/,$(FILTER_PROTOS))
 FILTER_TARGETS := $(addprefix $(GO_OUT)/,$(FILTER_GOS))
 
+CILIUM_PROTO_PATH = ../envoy
+
+CILIUM_PROTOS := *.proto
+CILIUM_GOS = $(CILIUM_PROTOS:.proto=.pb.go)
+CILIUM_SOURCES := $(addprefix $(CILIUM_PROTO_PATH)/,$(CILIUM_PROTOS))
+CILIUM_TARGETS := $(addprefix $(GO_OUT)/,$(CILIUM_GOS))
+
 GO_TARGET = test
 GO_SOURCES := $(shell find . -name '*.go')
 
-all: submodule_update $(API_TARGETS) $(FILTER_TARGETS) $(GO_TARGET)
+all: submodule_update $(API_TARGETS) $(CILIUM_TARGETS) $(FILTER_TARGETS) $(GO_TARGET)
 
 submodule_update: force
 	git submodule update
@@ -44,6 +51,9 @@ $(GO_OUT):
 
 $(API_TARGETS): $(API_SOURCES) | $(GO_OUT)
 	protoc --proto_path=$(PROTO_PATH) -I google --go_out=plugins=grpc:$(GO_OUT) $(API_SOURCES)
+
+$(CILIUM_TARGETS): $(CILIUM_SOURCES) | $(GO_OUT)
+	protoc --proto_path=$(CILIUM_PROTO_PATH) -I google --go_out=plugins=grpc:$(GO_OUT) $(CILIUM_SOURCES)
 
 $(API_SOURCES): $(PROTO_PATH)
 

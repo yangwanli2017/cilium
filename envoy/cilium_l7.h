@@ -7,6 +7,8 @@
 
 #include "common/common/logger.h"
 
+#include "accesslog.h"
+
 namespace Envoy {
 namespace Cilium {
 
@@ -26,41 +28,61 @@ struct FilterStats {
 };
 
 /**
- * Global configuration for Cilium HTTP filter.  This
- * represents all global state shared among the working thread
- * instances of the filter.
+ * Per listener configuration for Cilium HTTP filter.  This
+ * is accessed by multiple working thread instances of the filter.
  */
 class Config {
 public:
   Config(const Json::Object& config, Stats::Scope& scope);
 
   FilterStats stats_;
+  AccessLog access_log_;
+  std::string listener_id_;
 };
 
 typedef std::shared_ptr<Config> ConfigSharedPtr;
 
-// Each request gets their own instance of this DecoderFilter, and
+// Each request gets their own instance of this filter, and
 // they can run parallel from multiple worker threads, all accessing
 // the shared configuration.
-class DecoderFilter : Logger::Loggable<Logger::Id::router>,
-  public Http::StreamDecoderFilter {
+class AccessFilter : Logger::Loggable<Logger::Id::router>,
+  public Http::StreamFilter {
 public:
-  DecoderFilter(ConfigSharedPtr& config) : config_(config) {}
+ AccessFilter(ConfigSharedPtr& config) : config_(config), denied_(false) {}
 
   // Http::StreamFilterBase
   void onDestroy() override;
 
   // Http::StreamDecoderFilter
   Http::FilterHeadersStatus decodeHeaders(Http::HeaderMap& headers, bool) override;
-  Http::FilterDataStatus decodeData(Buffer::Instance&, bool) override;
-  Http::FilterTrailersStatus decodeTrailers(Http::HeaderMap&) override;
-  void setDecoderFilterCallbacks(Http::StreamDecoderFilterCallbacks& callbacks) override;
+  Http::FilterDataStatus decodeData(Buffer::Instance&, bool) override {
+    return Http::FilterDataStatus::Continue;
+  }
+  Http::FilterTrailersStatus decodeTrailers(Http::HeaderMap&) override {
+    return Http::FilterTrailersStatus::Continue;
+  }
+  void setDecoderFilterCallbacks(Http::StreamDecoderFilterCallbacks& callbacks) override {
+    request_callbacks_ = &callbacks;
+  }
+
+  // Http::StreamEncoderFilter
+  Http::FilterHeadersStatus encodeHeaders(Http::HeaderMap& headers, bool end_stream) override;
+  Http::FilterDataStatus encodeData(Buffer::Instance&, bool) override {
+    return Http::FilterDataStatus::Continue;
+  }
+  Http::FilterTrailersStatus encodeTrailers(Http::HeaderMap&) override {
+    return Http::FilterTrailersStatus::Continue;
+  }
+  void setEncoderFilterCallbacks(Http::StreamEncoderFilterCallbacks& callbacks) override {
+    response_callbacks_ = &callbacks;
+  }
 
 private:
   ConfigSharedPtr config_;
-  Http::StreamDecoderFilterCallbacks* callbacks_;
-  const Http::LowerCaseString& headerKey();
-  const std::string& headerValue();
+  Http::StreamDecoderFilterCallbacks* request_callbacks_;
+  Http::StreamEncoderFilterCallbacks* response_callbacks_;
+
+  bool denied_;
 };
 
 } // Cilium

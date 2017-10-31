@@ -34,6 +34,9 @@ type Listener struct {
 	// Policy
 	l7rules policy.L7DataMap
 
+	// Interface for access logging
+	logger EnvoyLogger
+
 	// Derive from StreamControl to manage the Envoy RDS gRPC stream for this listener.
 	StreamControl
 }
@@ -55,7 +58,7 @@ type LDSServer struct {
 	StreamControl
 }
 
-func createLDSServer(path string) *LDSServer {
+func createLDSServer(path, accessLogPath string) *LDSServer {
 	ldsServer := &LDSServer{path: path, StreamControl: makeStreamControl("LDS")}
 
 	os.Remove(path)
@@ -87,6 +90,9 @@ func createLDSServer(path string) *LDSServer {
 							"name": {&structpb.Value_StringValue{StringValue: "cilium_l7"}},
 							"config": {&structpb.Value_StructValue{StructValue: &structpb.Struct{Fields: map[string]*structpb.Value{
 								"deprecated_v1": {&structpb.Value_BoolValue{BoolValue: true}},
+								"value": {&structpb.Value_StructValue{StructValue: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"access_log_path": {&structpb.Value_StringValue{StringValue: accessLogPath}},
+								}}}},
 							}}}},
 							"deprecated_v1": {&structpb.Value_StructValue{StructValue: &structpb.Struct{Fields: map[string]*structpb.Value{
 								"type": {&structpb.Value_StringValue{StringValue: "decoder"}},
@@ -141,7 +147,7 @@ func createLDSServer(path string) *LDSServer {
 	return ldsServer
 }
 
-func (s *LDSServer) addListener(name string, port uint16, l7rules policy.L7DataMap, isIngress bool) {
+func (s *LDSServer) addListener(name string, port uint16, l7rules policy.L7DataMap, isIngress bool, logger EnvoyLogger) {
 	s.listenersMutex.Lock()
 	log.Debug("Envoy: addListener ", name)
 
@@ -156,6 +162,7 @@ func (s *LDSServer) addListener(name string, port uint16, l7rules policy.L7DataM
 		proxyPort:     port,
 		l7rules:       l7rules,
 		listenerConf:  proto.Clone(s.listenerProto).(*envoy_api.Listener),
+		logger:        logger,
 		StreamControl: makeStreamControl(resourceName),
 	}
 
@@ -166,6 +173,7 @@ func (s *LDSServer) addListener(name string, port uint16, l7rules policy.L7DataM
 	if isIngress {
 		listener.listenerConf.ListenerFilterChain[0].Config.Fields["value"].GetStructValue().Fields["is_ingress"].GetKind().(*structpb.Value_BoolValue).BoolValue = true
 	}
+	listener.listenerConf.FilterChains[0].Filters[0].Config.Fields["http_filters"].GetListValue().Values[0].GetStructValue().Fields["config"].GetStructValue().Fields["value"].GetStructValue().Fields["listener_id"] = &structpb.Value{Kind: &structpb.Value_StringValue{StringValue: resourceName}}
 	s.listeners[name] = listener
 	s.envoyResources[resourceName] = listener
 	s.listenersMutex.Unlock()
@@ -289,29 +297,46 @@ func (s *RDSServer) translatePolicyRule(h api.PortRuleHTTP) *envoy_api.Route {
 		cnt++
 	}
 
+	var rule_ref string
 	isRegex := wrappers.BoolValue{Value: true}
 	headers := make([]*envoy_api.HeaderMatcher, 0, cnt)
 	if h.Path != "" {
 		headers = append(headers, &envoy_api.HeaderMatcher{Name: ":path", Value: h.Path, Regex: &isRegex})
+		rule_ref = "PathRegexp(\"" + h.Path + "\")"
 	}
 	if h.Method != "" {
 		headers = append(headers, &envoy_api.HeaderMatcher{Name: ":method", Value: h.Method, Regex: &isRegex})
+		if rule_ref != "" {
+			rule_ref += " && "
+		}
+		rule_ref += "MethodRegexp(\"" + h.Method + "\")"
 	}
 
 	if h.Host != "" {
 		headers = append(headers, &envoy_api.HeaderMatcher{Name: ":authority", Value: h.Host, Regex: &isRegex})
+		if rule_ref != "" {
+			rule_ref += " && "
+		}
+		rule_ref += "HostRegexp(\"" + h.Method + "\")"
 	}
 	for _, hdr := range h.Headers {
 		strs := strings.SplitN(hdr, " ", 2)
+		if rule_ref != "" {
+			rule_ref += " && "
+		}
+		rule_ref += "Header(\""
 		if len(strs) == 2 {
 			// Remove ':' in "X-Key: true"
 			key := strings.TrimRight(strs[0], ":")
 			// Header presence and matching (literal) value needed.
 			headers = append(headers, &envoy_api.HeaderMatcher{Name: key, Value: strs[1]})
+			rule_ref += key + "\",\"" + strs[1]
 		} else {
 			// Only header presence needed
 			headers = append(headers, &envoy_api.HeaderMatcher{Name: strs[0]})
+			rule_ref += strs[0]
 		}
+		rule_ref += "\")"
 	}
 
 	// Envoy v2 API has a Path Regex, but it has not been
@@ -323,6 +348,13 @@ func (s *RDSServer) translatePolicyRule(h api.PortRuleHTTP) *envoy_api.Route {
 			Headers:       headers,
 		},
 		Action: &s.allowAction,
+		Metadata: &envoy_api.Metadata{
+			FilterMetadata: map[string]*structpb.Struct{
+				"envoy.router": {Fields: map[string]*structpb.Value{
+					"cilium_rule_ref": {&structpb.Value_StringValue{StringValue: rule_ref}},
+				}},
+			},
+		},
 	}
 }
 

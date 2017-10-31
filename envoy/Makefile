@@ -43,6 +43,9 @@ install: force
 	$(INSTALL) -m 0755 -T $(DEBUG_TARGET) $(DESTDIR)$(BINDIR)/cilium-envoy-debug
 
 clean: force
+	echo "Clean skipped, try \"make distclean\" instead."
+
+distclean: force
 	$(BAZEL) clean
 
 check: force

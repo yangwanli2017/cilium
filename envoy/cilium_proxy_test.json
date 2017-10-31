@@ -50,7 +50,10 @@
           {
             "type": "decoder",
             "name": "cilium_l7",
-            "config": {}
+            "config": {
+		"access_log_path": "",
+		"listener_id": "foo42"
+	    }
           },
           {
             "type": "decoder",

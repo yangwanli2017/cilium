@@ -16,11 +16,16 @@ package proxy
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"sync"
+	"time"
 
 	"github.com/cilium/cilium/pkg/envoy"
 	"github.com/cilium/cilium/pkg/policy"
+	"github.com/cilium/cilium/pkg/proxy/accesslog"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -29,8 +34,10 @@ var envoyProxy *envoy.Envoy
 
 // EnvoyRedirect implements the Redirect interface for a l7 proxy
 type EnvoyRedirect struct {
-	id     string
-	toPort uint16
+	id      string
+	toPort  uint16
+	ingress bool
+	source  ProxySource
 }
 
 // ToPort returns the redirect port of an OxyRedirect
@@ -59,11 +66,13 @@ func createEnvoyRedirect(l4 *policy.L4Filter, id string, source ProxySource, to 
 
 	if envoyProxy != nil {
 		redir := &EnvoyRedirect{
-			id:     id,
-			toPort: to,
+			id:      id,
+			toPort:  to,
+			ingress: l4.Ingress,
+			source:  source,
 		}
 
-		envoyProxy.AddListener(id, to, l4.L7RulesPerEp, l4.Ingress)
+		envoyProxy.AddListener(id, to, l4.L7RulesPerEp, l4.Ingress, redir)
 
 		return redir, nil
 	}
@@ -85,4 +94,60 @@ func (r *EnvoyRedirect) Close() {
 	if envoyProxy != nil {
 		envoyProxy.RemoveListener(r.id)
 	}
+}
+
+// Log does access logging for Envoy
+func (r *EnvoyRedirect) Log(pblog *envoy.HttpLogEntry) {
+	log.Infof("%s: Access log message: %s", pblog.CiliumResourceName, pblog.String())
+
+	var scheme, path, method string
+	headers := make(http.Header)
+	for _, header := range pblog.Headers {
+		switch header.Key {
+		case ":path":
+			path = header.Value
+		case ":method":
+			method = header.Value
+		case "x-forwarded-proto":
+			scheme = header.Value
+		case ":authority": // Envoy uses HTTP/2 representation also for HTTP/1.1
+			headers.Add("host", header.Value)
+		default:
+			headers.Add(header.Key, header.Value)
+		}
+	}
+
+	url := url.URL{
+		Scheme: scheme,
+		Path:   path,
+	}
+
+	var proto string
+	switch pblog.HttpProtocol {
+	case envoy.Protocol_HTTP10:
+		proto = "HTTP/1"
+	case envoy.Protocol_HTTP11:
+		proto = "HTTP/1.1"
+	case envoy.Protocol_HTTP2:
+		proto = "HTTP/2"
+	}
+
+	record := newHTTPLogRecord(r, method, &url, proto, headers)
+
+	record.fillInfo(r, pblog.SourceAddress, pblog.DestinationAddress, pblog.SourceSecurityId)
+
+	var flowType accesslog.FlowType
+	var verdict accesslog.FlowVerdict
+
+	switch pblog.EntryType {
+	case envoy.EntryType_Denied:
+		flowType, verdict = accesslog.TypeRequest, accesslog.VerdictDenied
+	case envoy.EntryType_Request:
+		flowType, verdict = accesslog.TypeRequest, accesslog.VerdictForwarded
+	case envoy.EntryType_Response:
+		flowType, verdict = accesslog.TypeResponse, accesslog.VerdictForwarded
+	}
+
+	record.Timestamp = time.Unix(int64(pblog.Timestamp/1000000000), int64(pblog.Timestamp%1000000000)).UTC().Format(time.RFC3339Nano)
+	record.log_stamped(flowType, verdict, int(pblog.ResponseCode), pblog.CiliumRuleRef)
 }

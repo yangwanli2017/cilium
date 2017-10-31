@@ -5,6 +5,7 @@ load(
     "envoy_cc_binary",
     "envoy_cc_library",
     "envoy_cc_test",
+    "envoy_proto_library",
 )
 
 envoy_cc_binary(
@@ -17,12 +18,18 @@ envoy_cc_binary(
     ],
 )
 
+envoy_proto_library(
+    name = "accesslog_proto",
+    srcs = ["accesslog.proto"],
+)
+
 envoy_cc_library(
     name = "cilium_l7_lib",
-    srcs = ["cilium_l7.cc"],
-    hdrs = ["cilium_l7.h"],
+    srcs = ["cilium_l7.cc", "accesslog.cc"],
+    hdrs = ["cilium_l7.h", "accesslog.h"],
     repository = "@envoy",
     deps = [
+        ":accesslog_proto",
         "@envoy//source/exe:envoy_common_lib",
     ],
 )
