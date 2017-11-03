@@ -571,6 +571,9 @@ func createBootstrap(filePath string, name, cluster, version string, ldsName, ld
 					Type:           envoy_api.Cluster_ORIGINAL_DST,
 					ConnectTimeout: &duration.Duration{Seconds: 1, Nanos: 0},
 					LbPolicy:       envoy_api.Cluster_ORIGINAL_DST_LB,
+					ProtocolOptions: &envoy_api.Cluster_Http2ProtocolOptions{
+						Http2ProtocolOptions: &envoy_api.Http2ProtocolOptions{},
+					},
 				},
 				{
 					Name:           ldsName,
