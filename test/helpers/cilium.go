@@ -30,30 +30,6 @@ const (
 	MaxRetries = 30
 )
 
-// Cilium is utilized to run cilium-specific commands on its SSHMeta. Informational
-// output about the result of commands and the state of the node is stored in its
-// associated logger.
-type Cilium struct {
-	Node *SSHMeta
-
-	logger *log.Entry
-}
-
-// CreateCilium returns a Cilium object containing the SSHMeta of the provided vmName,
-// as well as the provided logger.
-func CreateCilium(vmName string, log *log.Entry) *Cilium {
-	log.Infof("Cilium: set vmName to '%s'", vmName)
-	node := GetVagrantSSHMetadata(vmName)
-	if node == nil {
-		return nil
-	}
-
-	return &Cilium{
-		Node:   node,
-		logger: log,
-	}
-}
-
 // ExecCilium runs a Cilium CLI command and returns the resultant cmdRes.
 func (s *SSHMeta) ExecCilium(cmd string) *CmdRes {
 	stdout := new(bytes.Buffer)
