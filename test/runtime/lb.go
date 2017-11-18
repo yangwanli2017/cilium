@@ -67,7 +67,7 @@ var _ = Describe("RuntimeLB", func() {
 
 	BeforeEach(func() {
 		initialize()
-		cilium.Exec("service delete --all")
+		cilium.ExecCilium("service delete --all")
 	}, 500)
 
 	AfterEach(func() {
@@ -94,7 +94,7 @@ var _ = Describe("RuntimeLB", func() {
 		helpers.Sleep(5)
 		//TODO: This need to be with Wait,Timeout
 		//Checking that bpf lb list is working correctly
-		result = cilium.Exec("bpf lb list")
+		result = cilium.ExecCilium("bpf lb list")
 
 		result.ExpectSuccess("service cannot be retrieved correctly")
 

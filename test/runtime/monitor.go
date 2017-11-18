@@ -73,7 +73,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 
 	It("Cilium monitor verbose mode", func() {
 
-		res := cilium.Exec(fmt.Sprintf("config %s=true %s=true %s=true",
+		res := cilium.ExecCilium(fmt.Sprintf("config %s=true %s=true %s=true",
 			MonitorDebug, MonitorDropNotification, MonitorTraceNotification))
 		res.ExpectSuccess()
 
@@ -100,7 +100,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 			"capture": "DEBUG:",
 		}
 
-		res := cilium.Exec(fmt.Sprintf("config %s=true %s=true %s=true",
+		res := cilium.ExecCilium(fmt.Sprintf("config %s=true %s=true %s=true",
 			MonitorDebug, MonitorDropNotification, MonitorTraceNotification))
 		res.ExpectSuccess()
 		for k, v := range eventTypes {
@@ -120,7 +120,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 	})
 
 	It("cilium monitor check --from", func() {
-		res := cilium.Exec(fmt.Sprintf("config %s=true %s=true %s=true", MonitorDebug, MonitorDropNotification, MonitorTraceNotification))
+		res := cilium.ExecCilium(fmt.Sprintf("config %s=true %s=true %s=true", MonitorDebug, MonitorDropNotification, MonitorTraceNotification))
 		res.ExpectSuccess()
 
 		docker.SampleContainersActions(helpers.Create, helpers.CiliumDockerNetwork)
@@ -145,7 +145,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 
 	It("cilium monitor check --to", func() {
 
-		res := cilium.Exec(fmt.Sprintf(
+		res := cilium.ExecCilium(fmt.Sprintf(
 			"config %s=true %s=true %s=true %s=always", MonitorDebug, MonitorDropNotification, MonitorTraceNotification, helpers.PolicyEnforcement))
 		res.ExpectSuccess()
 
@@ -170,7 +170,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 
 	It("cilium monitor check --related-to", func() {
 
-		res := cilium.Exec(fmt.Sprintf(
+		res := cilium.ExecCilium(fmt.Sprintf(
 			"config %s=true %s=true %s=true %s=always", MonitorDebug, MonitorDropNotification, MonitorTraceNotification, helpers.PolicyEnforcement))
 		res.ExpectSuccess()
 
@@ -193,7 +193,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 
 	It("multiple monitors", func() {
 
-		res := cilium.Exec(fmt.Sprintf(
+		res := cilium.ExecCilium(fmt.Sprintf(
 			"config %s=true %s=true %s=true %s=default", MonitorDebug, MonitorDropNotification, MonitorTraceNotification, helpers.PolicyEnforcement))
 		res.ExpectSuccess()
 
