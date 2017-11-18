@@ -28,6 +28,7 @@ import (
 type SSHMeta struct {
 	sshClient *SSHClient
 	env       []string
+	logger *log.Entry
 }
 
 // CreateSSHMeta returns an SSHMeta with the specified host, port, and user, as
