@@ -29,8 +29,7 @@ var _ = Describe("RuntimeLB", func() {
 
 	var initialized bool
 	var logger *log.Entry
-	var docker *helpers.SSHMeta
-	var cilium *helpers.Cilium
+	var vm *helpers.SSHMeta
 
 	initialize := func() {
 		if initialized == true {
@@ -38,9 +37,9 @@ var _ = Describe("RuntimeLB", func() {
 		}
 		logger = log.WithFields(log.Fields{"test": "RuntimeLB"})
 		logger.Info("Starting")
-		docker, cilium = helpers.CreateNewRuntimeHelper(helpers.Runtime, logger)
-		cilium.WaitUntilReady(100)
-		docker.NetworkCreate(helpers.CiliumDockerNetwork, "")
+		vm = helpers.CreateNewRuntimeHelper(helpers.Runtime, logger)
+		vm.WaitUntilReady(100)
+		vm.NetworkCreate(helpers.CiliumDockerNetwork, "")
 		initialized = true
 	}
 
@@ -56,23 +55,23 @@ var _ = Describe("RuntimeLB", func() {
 		switch mode {
 		case helpers.Create:
 			for k, v := range images {
-				docker.ContainerCreate(k, v, helpers.CiliumDockerNetwork, fmt.Sprintf("-l id.%s", k))
+				vm.ContainerCreate(k, v, helpers.CiliumDockerNetwork, fmt.Sprintf("-l id.%s", k))
 			}
 		case helpers.Delete:
 			for k := range images {
-				docker.ContainerRm(k)
+				vm.ContainerRm(k)
 			}
 		}
 	}
 
 	BeforeEach(func() {
 		initialize()
-		cilium.ExecCilium("service delete --all")
+		vm.ExecCilium("service delete --all")
 	}, 500)
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			cilium.ReportFailed(
+			vm.ReportFailed(
 				"sudo cilium service list",
 				"sudo cilium endpoint list")
 		}
@@ -82,11 +81,11 @@ var _ = Describe("RuntimeLB", func() {
 	It("Service Simple tests", func() {
 
 		By("Creating a valid service")
-		result := cilium.ServiceAdd(1, "[::]:80", []string{"[::1]:90", "[::2]:91"}, 2)
+		result := vm.ServiceAdd(1, "[::]:80", []string{"[::1]:90", "[::2]:91"}, 2)
 
 		result.ExpectSuccess("Service can't be added in cilium")
 
-		result = cilium.ServiceGet(1)
+		result = vm.ServiceGet(1)
 		result.ExpectSuccess("Service cannot be retrieved correctly")
 
 		Expect(result.Output()).Should(ContainSubstring("[::1]:90"), fmt.Sprintf(
@@ -94,7 +93,7 @@ var _ = Describe("RuntimeLB", func() {
 		helpers.Sleep(5)
 		//TODO: This need to be with Wait,Timeout
 		//Checking that bpf lb list is working correctly
-		result = cilium.ExecCilium("bpf lb list")
+		result = vm.ExecCilium("bpf lb list")
 
 		result.ExpectSuccess("service cannot be retrieved correctly")
 
@@ -102,48 +101,48 @@ var _ = Describe("RuntimeLB", func() {
 			"No service backends added correctly %q", result.Output()))
 
 		By("Service ID 0")
-		result = cilium.ServiceAdd(0, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
+		result = vm.ServiceAdd(0, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
 		result.ExpectFail("Service with id 0 can be added in cilium")
 
 		By("Service ID -1")
-		result = cilium.ServiceAdd(-1, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
+		result = vm.ServiceAdd(-1, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
 		result.ExpectFail("Service with id -1 can be added in cilium")
 
 		By("Duplicating serviceID")
-		result = cilium.ServiceAdd(1, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
+		result = vm.ServiceAdd(1, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
 		result.ExpectFail("Service with duplicated id can be added in cilium")
 
 		By("Duplicating service FE address")
 		//Trying to create a new service with id 10, that conflicts with the FE addr on id=1
-		result = cilium.ServiceAdd(10, "[::]:80", []string{"[::1]:90", "[::2]:91"}, 2)
+		result = vm.ServiceAdd(10, "[::]:80", []string{"[::1]:90", "[::2]:91"}, 2)
 		result.ExpectFail("Service with duplicated FE can be added in cilium")
 
-		result = cilium.ServiceGet(10)
+		result = vm.ServiceGet(10)
 		result.ExpectFail("service was added; addition of said service should have failed")
 
 		//Deleting service ID=1
-		result = cilium.ServiceDel(1)
+		result = vm.ServiceDel(1)
 		result.ExpectSuccess("Service cannot be deleted")
 
 		By("IPv4 testing")
-		result = cilium.ServiceAdd(1, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"}, 2)
+		result = vm.ServiceAdd(1, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"}, 2)
 
 		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service cannot be added in cilium")
 
-		result = cilium.ServiceGet(1)
+		result = vm.ServiceGet(1)
 		result.ExpectSuccess("Service cannot be retrieved correctly")
 
 		By("Duplicating service FE address IPv4")
-		result = cilium.ServiceAdd(20, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"}, 2)
+		result = vm.ServiceAdd(20, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"}, 2)
 		result.ExpectFail("Service can be added in cilium with duplicated FE")
 
-		result = cilium.ServiceGet(20)
+		result = vm.ServiceGet(20)
 		result.ExpectFail("Service was added and it shouldn't")
 	}, 500)
 
 	It("Service L3 tests", func() {
-		err := createInterface(docker)
+		err := createInterface(vm)
 		if err != nil {
 			log.Errorf("error creating interface: %s", err)
 		}
@@ -151,87 +150,87 @@ var _ = Describe("RuntimeLB", func() {
 
 		containers(helpers.Create)
 
-		httpd1, err := docker.ContainerInspectNet(helpers.Httpd1)
+		httpd1, err := vm.ContainerInspectNet(helpers.Httpd1)
 		Expect(err).Should(BeNil())
 
-		httpd2, err := docker.ContainerInspectNet(helpers.Httpd2)
+		httpd2, err := vm.ContainerInspectNet(helpers.Httpd2)
 		Expect(err).Should(BeNil())
 
 		//Create all the services
 
-		cilium.ServiceAdd(1, "2.2.2.2:0", []string{
+		vm.ServiceAdd(1, "2.2.2.2:0", []string{
 			fmt.Sprintf("%s:0", httpd1[helpers.IPv4]),
 			fmt.Sprintf("%s:0", httpd2[helpers.IPv4])}, 2)
 
-		cilium.ServiceAdd(2, "[f00d::1:1]:0", []string{
+		vm.ServiceAdd(2, "[f00d::1:1]:0", []string{
 			fmt.Sprintf("[%s]:0", httpd1[helpers.IPv6]),
 			fmt.Sprintf("[%s]:0", httpd2[helpers.IPv6])}, 100)
 
-		cilium.ServiceAdd(11, "3.3.3.3:0", []string{
+		vm.ServiceAdd(11, "3.3.3.3:0", []string{
 			fmt.Sprintf("%s:0", "10.0.2.15")}, 100)
 
-		cilium.ServiceAdd(22, "[f00d::1:2]:0", []string{
+		vm.ServiceAdd(22, "[f00d::1:2]:0", []string{
 			fmt.Sprintf("[%s]:0", "fd02:1:1:1:1:1:1:1")}, 100)
 
 		By("Cilium L3 service with Ipv4")
 
-		status := docker.ContainerExec(helpers.Client, helpers.Ping("2.2.2.2"))
+		status := vm.ContainerExec(helpers.Client, helpers.Ping("2.2.2.2"))
 		status.ExpectSuccess("L3 Proxy is not working IPv4")
 
 		By("Cilium L3 service with Ipv6")
-		status = docker.ContainerExec(helpers.Client, helpers.Ping6("f00d::1:1"))
+		status = vm.ContainerExec(helpers.Client, helpers.Ping6("f00d::1:1"))
 		status.ExpectSuccess("L3 Proxy is not working IPv6")
 
 		By("Cilium L3 service with Ipv4 Reverse")
-		status = docker.ContainerExec(helpers.Client, helpers.Ping("3.3.3.3"))
+		status = vm.ContainerExec(helpers.Client, helpers.Ping("3.3.3.3"))
 		status.ExpectSuccess("L3 Proxy is not working IPv6")
 
 		By("Cilium L3 service with Ipv6 Reverse")
-		status = docker.ContainerExec(helpers.Client, helpers.Ping("f00d::1:2"))
+		status = vm.ContainerExec(helpers.Client, helpers.Ping("f00d::1:2"))
 		status.ExpectSuccess("L3 Proxy is not working IPv6")
 	}, 500)
 
 	It("Service L4 tests", func() {
-		err := createInterface(docker)
+		err := createInterface(vm)
 		if err != nil {
 			log.Errorf("error creating interface: %s", err)
 		}
 		Expect(err).Should(BeNil())
 
 		containers(helpers.Create)
-		cilium.EndpointWaitUntilReady()
+		vm.EndpointWaitUntilReady()
 
-		httpd1, err := docker.ContainerInspectNet(helpers.Httpd1)
+		httpd1, err := vm.ContainerInspectNet(helpers.Httpd1)
 		Expect(err).Should(BeNil())
 
-		httpd2, err := docker.ContainerInspectNet(helpers.Httpd2)
+		httpd2, err := vm.ContainerInspectNet(helpers.Httpd2)
 		Expect(err).Should(BeNil())
 
 		By("Valid IPV4 nat")
-		status := cilium.ServiceAdd(1, "2.2.2.2:80", []string{
+		status := vm.ServiceAdd(1, "2.2.2.2:80", []string{
 			fmt.Sprintf("%s:80", httpd1[helpers.IPv4]),
 			fmt.Sprintf("%s:80", httpd2[helpers.IPv4])}, 2)
 		status.ExpectSuccess("L4 service cannot be created")
 
-		status = docker.ContainerExec(
+		status = vm.ContainerExec(
 			helpers.Client,
 			helpers.CurlFail("http://2.2.2.2:80/public"))
 		status.ExpectSuccess("L3 Proxy is not working IPv4")
 
 		By("Valid IPV6 nat")
-		status = cilium.ServiceAdd(2, "[f00d::1:1]:80", []string{
+		status = vm.ServiceAdd(2, "[f00d::1:1]:80", []string{
 
 			fmt.Sprintf("[%s]:80", httpd1[helpers.IPv6]),
 			fmt.Sprintf("[%s]:80", httpd2[helpers.IPv6])}, 2)
 		status.ExpectSuccess("L4 service cannot be created")
 
-		status = docker.ContainerExec(
+		status = vm.ContainerExec(
 			helpers.Client,
 			helpers.CurlFail("http://2.2.2.2:80/public"))
 		status.ExpectSuccess("L3 Proxy is not working IPv6")
 
 		By("L3 redirect to L4")
-		status = cilium.ServiceAdd(3, "2.2.2.2:0", []string{
+		status = vm.ServiceAdd(3, "2.2.2.2:0", []string{
 
 			fmt.Sprintf("%s:80", httpd1[helpers.IPv4]),
 			fmt.Sprintf("%s:80", httpd2[helpers.IPv4])}, 2)
