@@ -28,7 +28,7 @@ import (
 type SSHMeta struct {
 	sshClient *SSHClient
 	env       []string
-	logger *log.Entry
+	logger    *log.Entry
 }
 
 // CreateSSHMeta returns an SSHMeta with the specified host, port, and user, as
@@ -44,11 +44,10 @@ func (s *SSHMeta) String() string {
 
 }
 
-// GetVagrantSSHMetadata returns a SSHMeta initialized based on the provided
+// GetVagrantSSHMeta returns a SSHMeta initialized based on the provided
 // SSH-config target.
-func GetVagrantSSHMetadata(vmName string) *SSHMeta {
-	var vagrant Vagrant
-	config, err := vagrant.GetVagrantSSHMetadata(vmName)
+func GetVagrantSSHMeta(vmName string) *SSHMeta {
+	config, err := GetVagrantSSHMetadata(vmName)
 	if err != nil {
 		return nil
 	}
