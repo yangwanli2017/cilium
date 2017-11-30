@@ -26,6 +26,8 @@ function lines_expected {
   actual=`wc -l $2 | awk '{ print $1 }'`
 
   if [ $actual -lt $expected ]; then
+    log "$2 contents"
+    cat $2
     abort "monitor output lines($actual) in $2 is less than $expected"
   fi
 }
