@@ -251,6 +251,11 @@ func (state *traceState) unSelectRule(ctx *SearchContext, r *rule) {
 }
 
 func (r *rule) resolveL4Policy(ctx *SearchContext, state *traceState, result *L4Policy) (*L4Policy, error) {
+	log.Debug("MK in r.Sanitize r.Ingress:", r.Ingress)
+	log.Debug("MK in r.Sanitize r.Egress:", r.Egress)
+	log.Debug("MK in r.Sanitize len(r.Ingress):", len(r.Ingress))
+	log.Debug("MK in r.Sanitize len(r.Egress):", len(r.Egress))
+
 	if !r.EndpointSelector.Matches(ctx.To) {
 		state.unSelectRule(ctx, r)
 		return nil, nil

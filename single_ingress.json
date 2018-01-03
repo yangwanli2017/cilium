@@ -1,0 +1,18 @@
+[{
+    "endpointSelector": {"matchLabels":{"id.server":""}},
+    "ingress": [{
+        "fromEndpoints": [
+	    {"matchLabels":{"reserved:host":""}},
+	    {"matchLabels":{"id.client":""}}
+	],
+	"toPorts": [{
+	    "ports": [{"port": "80", "protocol": "tcp"}],
+	    "rules": {
+                "HTTP": [{
+		    "method": "GET",
+		    "path": "/public"
+                }]
+	    }
+	}]
+    }]
+}]
