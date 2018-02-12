@@ -46,9 +46,7 @@ var _ = Describe("K8sValidatedServicesTest", func() {
 		logger.Info("Starting")
 
 		kubectl = helpers.CreateKubectl(helpers.K8s1VMName(), logger)
-		path := kubectl.ManifestGet("cilium_ds.yaml")
-		kubectl.Apply(path)
-		_, err := kubectl.WaitforPods(helpers.KubeSystemNamespace, "-l k8s-app=cilium", 600)
+		err := kubectl.DeployCiliumDS(helpers.DefaultK8sTCiliumOpts())
 		Expect(err).Should(BeNil())
 
 		err = kubectl.WaitKubeDNS()
@@ -426,13 +424,15 @@ var _ = Describe("K8sValidatedServicesTest", func() {
 			Expect(err).Should(BeNil(), fmt.Sprintf("Error deleting resource %s: %s", policyPath, err))
 
 			By("Checking that all policies were deleted in Cilium")
-			output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, policyCmd)
-			Expect(err).Should(Not(BeNil()), "policies should be deleted from Cilium: policies found: %s", output)
+			cmdRes := kubectl.CiliumExec(ciliumPodK8s1, policyCmd)
+			out := cmdRes.CombineOutput()
+			cmdRes.ExpectFail(fmt.Sprintf("policies should be deleted from Cilium: policies found: %s", out))
 		}()
 
 		By("Checking that policies were correctly imported into Cilium")
-		_, err = kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, policyCmd)
-		Expect(err).Should(BeNil())
+		cmdRes := kubectl.CiliumExec(ciliumPodK8s1, policyCmd)
+		out := cmdRes.CombineOutput()
+		cmdRes.ExpectSuccess(fmt.Sprintf("policies should be deleted from Cilium: policies found: %s", out))
 
 		By("After policy import")
 		shouldConnect(reviewsPodV1.String(), formatAPI(ratings, apiPort, health))

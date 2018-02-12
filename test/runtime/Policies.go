@@ -827,7 +827,7 @@ var _ = Describe("RuntimeValidatedPolicyImportTests", func() {
 
 			generatedCIDRPolicy := genCIDRPolicy(numCIDRs)
 
-			err := helpers.RenderTemplateToFile(cidrPolicyJSON, generatedCIDRPolicy, 0777)
+			err := helpers.RenderTemplateToFile(cidrPolicyJSON, generatedCIDRPolicy, nil, 0777)
 			Expect(err).Should(BeNil())
 
 			defer os.Remove(cidrPolicyJSON)

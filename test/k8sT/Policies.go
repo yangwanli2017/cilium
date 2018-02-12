@@ -33,7 +33,6 @@ var _ = Describe("K8sValidatedPolicyTest", func() {
 	var kubectl *helpers.Kubectl
 	var l3Policy, l7Policy, denyIngress, denyEgress string
 	var logger *logrus.Entry
-	var path string
 	var podFilter string
 
 	initialize := func() {
@@ -49,10 +48,7 @@ var _ = Describe("K8sValidatedPolicyTest", func() {
 		denyEgress = kubectl.ManifestGet("knp-default-deny-egress.yaml")
 		l7Policy = kubectl.ManifestGet("l7_policy.yaml")
 
-		path = kubectl.ManifestGet("cilium_ds.yaml")
-		kubectl.Apply(path)
-		status, err := kubectl.WaitforPods(helpers.KubeSystemNamespace, "-l k8s-app=cilium", 300)
-		Expect(status).Should(BeTrue())
+		err := kubectl.DeployCiliumDS(helpers.DefaultK8sTCiliumOpts())
 		Expect(err).Should(BeNil())
 		err = kubectl.WaitKubeDNS()
 		Expect(err).Should(BeNil())
@@ -639,17 +635,13 @@ var _ = Describe("K8sValidatedPolicyTestAcrossNamespaces", func() {
 	var kubectl *helpers.Kubectl
 	var logger *logrus.Entry
 	var once sync.Once
-	var path string
 
 	initialize := func() {
 		logger = log.WithFields(logrus.Fields{"testName": "K8sPolicyTestAcrossNamespaces"})
 		logger.Info("Starting")
 		kubectl = helpers.CreateKubectl(helpers.K8s1VMName(), logger)
 
-		path = kubectl.ManifestGet("cilium_ds.yaml")
-		kubectl.Apply(path)
-		status, err := kubectl.WaitforPods(helpers.KubeSystemNamespace, "-l k8s-app=cilium", 300)
-		Expect(status).Should(BeTrue())
+		err := kubectl.DeployCiliumDS(helpers.DefaultK8sTCiliumOpts())
 		Expect(err).Should(BeNil())
 
 		err = kubectl.WaitKubeDNS()
@@ -743,8 +735,9 @@ var _ = Describe("K8sValidatedPolicyTestAcrossNamespaces", func() {
 
 		// Set debug mode to false for both cilium pods.
 		for _, ciliumPod := range ciliumPods {
-			out, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPod, "cilium config Debug=false")
-			Expect(err).Should(BeNil(), fmt.Sprintf("error disabling debug mode for cilium pod %s: %s", ciliumPod, out))
+			cmdRes := kubectl.CiliumExec(ciliumPod, "cilium config Debug=false")
+			out := cmdRes.CombineOutput()
+			cmdRes.ExpectSuccess(fmt.Sprintf("error disabling debug mode for cilium pod %s: %s", ciliumPod, out))
 		}
 
 		By("Creating Kubernetes namespace qa")
@@ -822,8 +815,9 @@ var _ = Describe("K8sValidatedPolicyTestAcrossNamespaces", func() {
 
 			defer policyDeleteAndCheck(ciliumPods, policyPath, policyCmd)
 
-			output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, "cilium policy get")
-			Expect(err).Should(BeNil(), fmt.Sprintf("output of \"cilium policy get\": %s", output))
+			cmdRes := kubectl.CiliumExec(ciliumPodK8s1, "cilium policy get")
+			out := cmdRes.CombineOutput()
+			cmdRes.ExpectSuccess(fmt.Sprintf("output of \"cilium policy get\": %s", out))
 
 			By("Running tests WITH Policy / Proxy loaded")
 			testConnectivity(frontendPod.String(), backendSvcIP.String())
@@ -842,8 +836,9 @@ var _ = Describe("K8sValidatedPolicyTestAcrossNamespaces", func() {
 
 			defer policyDeleteAndCheck(ciliumPods, policyPath, policyCmd)
 
-			output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, "cilium policy get")
-			Expect(err).Should(BeNil(), fmt.Sprintf("output of \"cilium policy get\": %s", output))
+			cmdRes := kubectl.CiliumExec(ciliumPodK8s1, "cilium policy get")
+			out := cmdRes.CombineOutput()
+			cmdRes.ExpectSuccess(fmt.Sprintf("output of \"cilium policy get\": %s", out))
 
 			By("Running tests WITH Policy / Proxy loaded")
 
