@@ -22,7 +22,7 @@ import (
 func (s *SSHMeta) ContainerExec(name string, cmd string) *CmdRes {
 	dockerCmd := fmt.Sprintf("docker exec -i %s %s", name, cmd)
 	log.Debugf("running command '%s'", dockerCmd)
-	return s.ExecWithSudo(dockerCmd)
+	return s.Exec(dockerCmd)
 }
 
 // ContainerCreate is a wrapper for `docker run`. It runs an instance of the
