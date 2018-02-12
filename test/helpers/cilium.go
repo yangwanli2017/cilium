@@ -717,3 +717,8 @@ func (s *SSHMeta) WaitUntilReady(timeout time.Duration) error {
 	err := WithTimeout(body, "Cilium is not ready", &TimeoutConfig{Timeout: timeout})
 	return err
 }
+
+//GetFilePath returns the absolute path of the provided filename
+func (s *SSHMeta) GetFilePath(filename string) string {
+	return filepath.Join(s.ciliumRootPath, "test", filename)
+}

@@ -299,8 +299,8 @@ var _ = Describe("NightlyExamples", func() {
 
 		fmt.Fprint(fp, result.String())
 
-		kubectl.Apply(helpers.GetFilePath(newCiliumDSName)).ExpectSuccess()
-		defer kubectl.Delete(helpers.GetFilePath(newCiliumDSName))
+		kubectl.Apply(kubectl.SSHMeta.GetFilePath(newCiliumDSName)).ExpectSuccess()
+		defer kubectl.Delete(kubectl.SSHMeta.GetFilePath(newCiliumDSName))
 		status, err := kubectl.WaitforPods(helpers.KubeSystemNamespace, "-l k8s-app=cilium", 300)
 		Expect(status).Should(BeTrue())
 		Expect(err).Should(BeNil())

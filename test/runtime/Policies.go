@@ -548,7 +548,7 @@ var _ = Describe("RuntimeValidatedPolicies", func() {
 		err = helpers.RenderTemplateToFile(ingressJSON, script, 0777)
 		Expect(err).Should(BeNil())
 
-		path := helpers.GetFilePath(ingressJSON)
+		path := vm.GetFilePath(ingressJSON)
 		_, err = vm.PolicyImportAndWait(path, helpers.HelperTimeout)
 		Expect(err).Should(BeNil())
 		defer os.Remove(ingressJSON)
@@ -579,7 +579,7 @@ var _ = Describe("RuntimeValidatedPolicies", func() {
 			}]`, helpers.App1, httpd1[helpers.IPv4], httpd1[helpers.IPv6])
 		err = helpers.RenderTemplateToFile(egressJSON, script, 0777)
 		Expect(err).Should(BeNil())
-		path = helpers.GetFilePath(egressJSON)
+		path = vm.GetFilePath(egressJSON)
 		defer os.Remove(egressJSON)
 		_, err = vm.PolicyImportAndWait(path, helpers.HelperTimeout)
 		Expect(err).Should(BeNil())
@@ -701,7 +701,7 @@ var _ = Describe("RuntimeValidatedPolicyImportTests", func() {
 			err := helpers.RenderTemplateToFile(invalidJSON, data, 0777)
 			Expect(err).Should(BeNil())
 
-			path := helpers.GetFilePath(invalidJSON)
+			path := vm.GetFilePath(invalidJSON)
 			_, err = vm.PolicyImportAndWait(path, helpers.HelperTimeout)
 			Expect(err).Should(HaveOccurred())
 			defer os.Remove(invalidJSON)
@@ -882,7 +882,7 @@ var _ = Describe("RuntimeValidatedPolicyImportTests", func() {
 		err := helpers.RenderTemplateToFile(policyJSON, policy, 0777)
 		Expect(err).Should(BeNil())
 
-		path := helpers.GetFilePath(policyJSON)
+		path := vm.GetFilePath(policyJSON)
 		_, err = vm.PolicyImportAndWait(path, helpers.HelperTimeout)
 		Expect(err).Should(BeNil())
 		defer os.Remove(policyJSON)

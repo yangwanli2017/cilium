@@ -35,7 +35,7 @@ var (
 const (
 	// BasePath is the path in the Vagrant VMs to which the test directory
 	// is mounted
-	BasePath = "/src/test/"
+	BasePath = "/home/vagrant/go/src/github.com/cilium/cilium/test"
 
 	// ManifestBase tells ginkgo suite where to look for manifests
 	K8sManifestBase = "k8sT/manifests"
@@ -175,11 +175,6 @@ var ciliumKubCLICommands = map[string]string{
 	"cilium bpf tunnel list":          "bpf_tunnel_list.txt",
 	"cilium policy get":               "policy_get.txt",
 	"cilium status --all-controllers": "status.txt",
-}
-
-//GetFilePath returns the absolute path of the provided filename
-func GetFilePath(filename string) string {
-	return fmt.Sprintf("%s%s", BasePath, filename)
 }
 
 // K8s1VMName is the name of the Kubernetes master node when running K8s tests.

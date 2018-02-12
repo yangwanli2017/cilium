@@ -27,11 +27,12 @@ import (
 
 // SSHMeta contains metadata to SSH into a remote location to run tests
 type SSHMeta struct {
-	sshClient *SSHClient
-	env       []string
-	rawConfig []byte
-	nodeName  string
-	logger    *logrus.Entry
+	sshClient      *SSHClient
+	env            []string
+	rawConfig      []byte
+	nodeName       string
+	logger         *logrus.Entry
+	ciliumRootPath string
 }
 
 // CreateSSHMeta returns an SSHMeta with the specified host, port, and user, as
@@ -70,9 +71,10 @@ func GetVagrantSSHMeta(vmName string) *SSHMeta {
 	}
 
 	return &SSHMeta{
-		sshClient: node.GetSSHClient(),
-		rawConfig: config,
-		nodeName:  vmName,
+		sshClient:      node.GetSSHClient(),
+		rawConfig:      config,
+		nodeName:       vmName,
+		ciliumRootPath: "/home/vagrant/go/src/github.com/cilium/cilium",
 	}
 }
 
