@@ -84,7 +84,7 @@ func endpointCreator(id uint16, secID policy.NumericIdentity) *e.Endpoint {
 				"foo" + strID: labels.NewLabel("foo"+strID, "", ""),
 			},
 		},
-		Maps:              map[int]*policymap.PolicyMap{},
+		IngressMaps:       map[int]*policymap.PolicyMap{},
 		IngressIdentities: map[policy.NumericIdentity]bool{},
 	}
 	return ep

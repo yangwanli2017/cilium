@@ -126,6 +126,6 @@ func Init() {
 			log.WithField(logfields.Identity, identity).Fatal("Unable to initialize consumable")
 		}
 		GetConsumableCache().addReserved(c)
-		c.AddMap(policyMap)
+		c.AddIngressMap(policyMap)
 	}
 }
