@@ -30,12 +30,16 @@ import (
 type Consumable struct {
 	// ID of the consumable (same as security ID)
 	ID NumericIdentity `json:"id"`
+
 	// Mutex protects all variables from this structure below this line
 	Mutex lock.RWMutex
+
 	// Labels are the Identity of this consumable
 	Labels *Identity `json:"labels"`
+
 	// LabelArray contains the same labels from identity in a form of a list, used for faster lookup
 	LabelArray labels.LabelArray `json:"-"`
+
 	// Iteration policy of the Consumable
 	Iteration uint64 `json:"-"`
 
@@ -59,11 +63,13 @@ type Consumable struct {
 	// key (security identity) should be garbage collected upon policy calculation.
 	EgressIdentities map[NumericIdentity]bool `json:"egress-identities"`
 
-	// L4Policy contains the policy of this consumable
+	// L4Policy contains the L4-only policy of this consumable
 	L4Policy *L4Policy `json:"l4-policy"`
+
 	// L3L4Policy contains the L3, L4 and L7 ingress policy of this consumable
 	L3L4Policy *SecurityIDContexts `json:"l3-l4-policy"`
-	cache      *ConsumableCache
+
+	cache *ConsumableCache
 }
 
 // NewConsumable creates a new consumable
