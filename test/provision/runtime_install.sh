@@ -3,7 +3,6 @@ set -e
 
 HOST=$(hostname)
 PROVISIONSRC="/tmp/provision"
-GOPATH=/go/
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
