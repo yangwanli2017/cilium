@@ -23,6 +23,13 @@ import (
 var (
 	// HelperTimeout is a predefined timeout value for commands.
 	HelperTimeout time.Duration = 300 // WithTimeout helper translates it to seconds
+
+	// Runtime VM name
+	RuntimeVM = "runtime"
+
+	// K8s VM names
+	K8s1 = "k8s1"
+	K8s2 = "k8s2"
 )
 
 const (
@@ -34,9 +41,9 @@ const (
 	K8sManifestBase = "k8sT/manifests"
 
 	// VM / Test suite constants.
+
+	//Scopes
 	K8s     = "k8s"
-	K8s1    = "k8s1"
-	K8s2    = "k8s2"
 	Runtime = "runtime"
 
 	Enabled  = "enabled"
@@ -177,10 +184,10 @@ func GetFilePath(filename string) string {
 
 // K8s1VMName is the name of the Kubernetes master node when running K8s tests.
 func K8s1VMName() string {
-	return fmt.Sprintf("k8s1-%s", GetCurrentK8SEnv())
+	return fmt.Sprintf("%s-%s", K8s1, GetCurrentK8SEnv())
 }
 
 // K8s2VMName is the name of the Kubernetes worker node when running K8s tests.
 func K8s2VMName() string {
-	return fmt.Sprintf("k8s2-%s", GetCurrentK8SEnv())
+	return fmt.Sprintf("%s-%s", K8s2, GetCurrentK8SEnv())
 }

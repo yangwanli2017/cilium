@@ -59,7 +59,7 @@ var _ = Describe("RuntimeValidatedPolicyEnforcement", func() {
 	initialize := func() {
 		logger = log.WithFields(logrus.Fields{"testName": "RuntimePolicyEnforcement"})
 		logger.Info("Starting")
-		vm = helpers.CreateNewRuntimeHelper(helpers.Runtime, logger)
+		vm = helpers.CreateNewRuntimeHelper(helpers.RuntimeVM, logger)
 		areEndpointsReady := vm.WaitEndpointsReady()
 		Expect(areEndpointsReady).Should(BeTrue())
 	}
@@ -420,7 +420,7 @@ var _ = Describe("RuntimeValidatedPolicies", func() {
 	initialize := func() {
 		logger = log.WithFields(logrus.Fields{"test": "RunPolicies"})
 		logger.Info("Starting")
-		vm = helpers.CreateNewRuntimeHelper(helpers.Runtime, logger)
+		vm = helpers.CreateNewRuntimeHelper(helpers.RuntimeVM, logger)
 		areEndpointsReady := vm.WaitEndpointsReady()
 		Expect(areEndpointsReady).Should(BeTrue())
 	}
@@ -832,7 +832,7 @@ var _ = Describe("RuntimeValidatedPolicyImportTests", func() {
 
 			defer os.Remove(cidrPolicyJSON)
 
-			path := helpers.GetFilePath(cidrPolicyJSON)
+			path := vm.GetFilePath(cidrPolicyJSON)
 			if numCIDRs > 39 {
 				By("Following error importing policy is expected because only at most 40 CIDRs are allowed in a single rule")
 			}

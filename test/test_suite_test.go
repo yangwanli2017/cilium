@@ -132,12 +132,12 @@ var _ = BeforeSuite(func() {
 
 	switch ginkgoext.GetScope() {
 	case helpers.Runtime:
-		err = helpers.CreateVM(helpers.Runtime)
+		err = helpers.CreateVM(helpers.RuntimeVM)
 		if err != nil {
-			Fail(fmt.Sprintf("error starting VM %q: %s", helpers.Runtime, err))
+			Fail(fmt.Sprintf("error starting VM %q: %s", helpers.RuntimeVM, err))
 		}
 
-		vm := helpers.InitRuntimeHelper(helpers.Runtime, log.WithFields(
+		vm := helpers.InitRuntimeHelper(helpers.RuntimeVM, log.WithFields(
 			logrus.Fields{"testName": "BeforeSuite"}))
 		err = vm.SetUpCilium()
 
@@ -193,7 +193,7 @@ var _ = AfterSuite(func() {
 	log.Infof("cleaning up VMs started for %s tests", scope)
 	switch scope {
 	case helpers.Runtime:
-		helpers.DestroyVM(helpers.Runtime)
+		helpers.DestroyVM(helpers.RuntimeVM)
 	case helpers.K8s:
 		helpers.DestroyVM(helpers.K8s1VMName())
 		helpers.DestroyVM(helpers.K8s2VMName())
