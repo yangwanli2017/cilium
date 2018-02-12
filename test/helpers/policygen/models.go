@@ -198,24 +198,6 @@ func (t *Target) GetManifestPath(spec *TestSpec) string {
 // created correctly or applied to Kubernetes
 func (t *Target) CreateApplyManifest(spec *TestSpec) error {
 	manifestPath := t.GetManifestPath(spec)
-	getTemplate := func(tmpl string) (*bytes.Buffer, error) {
-		metadata := map[string]interface{}{
-			"spec":       spec,
-			"target":     t,
-			"targetName": t.GetServiceName(spec),
-		}
-		t, err := template.New("").Parse(tmpl)
-		if err != nil {
-			return nil, err
-		}
-		content := new(bytes.Buffer)
-		err = t.Execute(content, metadata)
-		if err != nil {
-			return nil, err
-		}
-		return content, nil
-	}
-
 	switch t.Kind {
 	case service:
 		// As default services are listen on port 80.
@@ -234,11 +216,12 @@ func (t *Target) CreateApplyManifest(spec *TestSpec) error {
 				"id": "{{ .spec.DestPod }}"
 			}
 		}}`
-		data, err := getTemplate(service)
-		if err != nil {
-			return fmt.Errorf("cannot render template: %s", err)
+		metadata := map[string]interface{}{
+			"spec":       spec,
+			"target":     t,
+			"targetName": t.GetServiceName(spec),
 		}
-		err = helpers.RenderTemplateToFile(t.GetManifestName(spec), data.String(), os.ModePerm)
+		err := helpers.RenderTemplateToFile(t.GetManifestName(spec), service, metadata, os.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -266,12 +249,12 @@ func (t *Target) CreateApplyManifest(spec *TestSpec) error {
 		  }
 		}`
 
-		data, err := getTemplate(nodePort)
-		if err != nil {
-			return fmt.Errorf("cannot render template: %s", err)
+		metadata := map[string]interface{}{
+			"spec":       spec,
+			"target":     t,
+			"targetName": t.GetServiceName(spec),
 		}
-
-		err = helpers.RenderTemplateToFile(t.GetManifestName(spec), data.String(), os.ModePerm)
+		err := helpers.RenderTemplateToFile(t.GetManifestName(spec), nodePort, metadata, os.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -418,6 +401,7 @@ spec:
 	err := helpers.RenderTemplateToFile(
 		t.GetManifestName(),
 		fmt.Sprintf(manifest, t.Prefix, t.SrcPod, t.DestPod),
+		nil,
 		os.ModePerm)
 	if err != nil {
 		return err

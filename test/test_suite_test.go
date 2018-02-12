@@ -139,7 +139,7 @@ var _ = BeforeSuite(func() {
 
 		vm := helpers.InitRuntimeHelper(helpers.RuntimeVM, log.WithFields(
 			logrus.Fields{"testName": "BeforeSuite"}))
-		err = vm.SetUpCilium()
+		err = vm.SetUpCilium(helpers.DefaultRuntimeCiliumOpts())
 
 		if err != nil {
 			Fail(fmt.Sprintf("cilium was unable to be set up correctly: %s", err))
