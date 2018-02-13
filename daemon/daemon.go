@@ -64,6 +64,7 @@ import (
 	"github.com/cilium/cilium/pkg/workloads"
 	"github.com/cilium/cilium/pkg/workloads/containerd"
 
+	"github.com/cilium/cilium/pkg/ipcache"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/mattn/go-shellwords"
 	"github.com/sirupsen/logrus"
@@ -909,6 +910,17 @@ func (d *Daemon) init() error {
 	return nil
 }
 
+// GetAddressSpace returns the address space (cluster, etc.) in which Cilium is
+// running.
+func GetAddressSpace() string {
+	if k8s.IsEnabled() {
+		return k8s.GetClusterName()
+	}
+
+	return ipcache.DefaultAddressSpace
+
+}
+
 // NewDaemon creates and returns a new Daemon with the parameters set in c.
 func NewDaemon(c *Config) (*Daemon, error) {
 	if c == nil {
@@ -1060,6 +1072,12 @@ func NewDaemon(c *Config) (*Daemon, error) {
 	// This needs to be done after the node addressing has been configured
 	// as the node address is required as sufix
 	identity.InitIdentityAllocator(&d)
+
+	// Initialize address space variable in policy package.
+	ipcache.SetAddressSpace(GetAddressSpace())
+
+	// Start watcher for endpoint IP --> identity mappings in key-value store.
+	ipcache.InitIPIdentityWatcher(&d)
 
 	if !d.conf.IPv4Disabled {
 		// Allocate IPv4 service loopback IP
