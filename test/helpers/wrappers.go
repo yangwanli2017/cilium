@@ -32,14 +32,13 @@ const (
 // Ping returns the string representing the ping command to ping the specified
 // endpoint.
 func Ping(endpoint string) string {
-	// TODO: add W -2 ?
-	return fmt.Sprintf("ping -c %d %s", PingCount, endpoint)
+	return fmt.Sprintf("ping -W 2 -c %d %s", PingCount, endpoint)
 }
 
 // Ping6 returns the string representing the ping6 command to ping6 the
 // specified endpoint.
 func Ping6(endpoint string) string {
-	return fmt.Sprintf("ping6 -c %d %s", PingCount, endpoint)
+	return fmt.Sprintf("ping6 -W 2 -c %d %s", PingCount, endpoint)
 }
 
 // CurlFail returns the string representing the curl command with `-s` and `--fail`
