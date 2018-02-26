@@ -16,8 +16,11 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -28,13 +31,17 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 	"k8s.io/api/core/v1"
+	k8sClient "k8s.io/client-go/kubernetes"
+	rest "k8s.io/client-go/rest"
 )
 
 const (
-	KubectlCmd    = "kubectl"
-	manifestsPath = "k8sT/manifests/"
-	kubeDNSLabel  = "k8s-app=kube-dns"
+	KubectlCmd           = "kubectl"
+	manifestsPath        = "k8sT/manifests/"
+	kubeDNSLabel         = "k8s-app=kube-dns"
+	k8sInsecureAPIServer = "127.0.0.1:8080"
 )
 
 // GetCurrentK8SEnv returns the value of K8S_VERSION from the OS environment.
@@ -45,6 +52,7 @@ func GetCurrentK8SEnv() string { return os.Getenv("K8S_VERSION") }
 // SSHMeta.
 type Kubectl struct {
 	*SSHMeta
+	k8sClient.Clientset
 }
 
 // CreateKubectl initializes a Kubectl helper with the provided vmName and log
@@ -66,8 +74,35 @@ func CreateKubectl(vmName string, log *logrus.Entry) *Kubectl {
 		return nil
 	}
 	node.logger = log
+
+	f := &rest.Config{}
+	err := rest.SetKubernetesDefaults(f)
+	if err != nil {
+		ginkgo.Fail(fmt.Sprintf(
+			"Cannot set kubernetes configuration defaults: %s", err), 1)
+		return nil
+	}
+	f.Transport = &http.Transport{
+		DialContext: func(_ context.Context, network, addr string) (net.Conn, error) {
+			// Create a connection to the kubeapiserver via the ssh tunnel
+			conn, err := ssh.Dial("tcp", node.sshClient.GetHostPort(), node.sshClient.Config)
+			if err != nil {
+				return nil, err
+			}
+			return conn.Dial("tcp", k8sInsecureAPIServer)
+		},
+	}
+	f.Host = k8sInsecureAPIServer
+
+	c, err := k8sClient.NewForConfig(f)
+	if err != nil {
+		ginkgo.Fail(fmt.Sprintf(
+			"Cannot create kubernetes client: %s", err), 1)
+		return nil
+	}
 	return &Kubectl{
-		SSHMeta: node,
+		SSHMeta:   node,
+		Clientset: *c,
 	}
 }
 
