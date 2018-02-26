@@ -139,6 +139,9 @@ const (
 
 	// K8sNamespaceLabel is the key that maps to the namespace for a pod.
 	K8sNamespaceLabel = "io.kubernetes.pod.namespace"
+
+	// PodNamespaceMetaLabels is the key that maps to the labels of a namespace.
+	PodNamespaceMetaLabels = "ns-labels"
 )
 
 // Label is the cilium's representation of a container label.
